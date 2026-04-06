@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<div class="auth-shell">
+    <div class="container">
+        <div class="row g-4 align-items-stretch">
+            <div class="col-lg-5 d-none d-lg-flex">
+                <div class="auth-brand-panel w-100">
+                    <i class="bi bi-shield-lock display-4 mb-3 opacity-90"></i>
+                    <h2 class="mb-3">SecureVault</h2>
+                    <p class="opacity-90 mb-0 lead fs-6">Храните пароли в зашифрованном виде и управляйте доступом из одного места.</p>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card auth-card border-0">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="d-lg-none text-center mb-4">
+                            <span class="brand-icon rounded d-inline-flex align-items-center justify-content-center mb-3" style="width:3rem;height:3rem;">
+                                <i class="bi bi-shield-lock"></i>
+                            </span>
+                            <h2 class="h4 fw-bold">SecureVault</h2>
+                            <p class="text-muted small mb-0">Вход в аккаунт</p>
+                        </div>
+                        <h2 class="h4 fw-bold d-none d-lg-block mb-1">Вход</h2>
+                        <p class="text-muted small d-none d-lg-block mb-4">Введите имя пользователя и пароль</p>
+
+                        <form method="POST" novalidate>
+                            {{ form.hidden_tag() }}
+
+                            <div class="mb-3">
+                                {{ form.username.label(class="form-label") }}
+                                {% if form.username.errors %}
+                                    {{ form.username(class="form-control is-invalid", autofocus=True, autocomplete="username") }}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.username.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.username(class="form-control", placeholder="Имя пользователя", autofocus=True, autocomplete="username") }}
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-4">
+                                {{ form.password.label(class="form-label") }}
+                                {% if form.password.errors %}
+                                    {{ form.password(class="form-control is-invalid", autocomplete="current-password") }}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.password.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.password(class="form-control", placeholder="Пароль", autocomplete="current-password") }}
+                                {% endif %}
+                            </div>
+
+                            <div class="d-grid">
+                                {{ form.submit(class="btn btn-primary btn-lg", value="Войти") }}
+                            </div>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <p class="text-center text-muted small mb-0">
+                            Нет аккаунта?
+                            <a href="{{ url_for('auth.register') }}" class="fw-semibold text-decoration-none">Зарегистрируйтесь</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

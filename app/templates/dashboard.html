@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Панель управления{% endblock %}
+
+{% set svc_labels = {
+    'server': 'Сервер',
+    'database': 'База данных',
+    'app': 'Приложение',
+    'email': 'Email',
+    'cloud': 'Облако',
+    'vpn': 'VPN',
+    'other': 'Другое'
+} %}
+{% set svc_type_keys = svc_labels.keys()|list %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4 align-items-end">
+        <div class="col-lg-8">
+            <h1 class="h3 fw-bold mb-1">Добро пожаловать, {{ current_user.username }}</h1>
+            <p class="text-muted mb-0">Краткая сводка по вашему хранилищу</p>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card h-100">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="stat-icon stat-icon--primary"><i class="bi bi-key-fill"></i></div>
+                    <div>
+                        <p class="text-muted small text-uppercase fw-semibold mb-1">Учётные записи</p>
+                        <p class="h3 fw-bold mb-0">{{ total_credentials }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card h-100">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="stat-icon stat-icon--emerald"><i class="bi bi-folder2-open"></i></div>
+                    <div>
+                        <p class="text-muted small text-uppercase fw-semibold mb-1">Группы</p>
+                        <p class="h3 fw-bold mb-0">{{ total_groups }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card h-100">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="stat-icon stat-icon--sky"><i class="bi bi-clock-history"></i></div>
+                    <div>
+                        <p class="text-muted small text-uppercase fw-semibold mb-1">Последний вход</p>
+                        <p class="fw-semibold mb-0 small">
+                            {{ current_user.last_login.strftime('%d.%m.%Y %H:%M') if current_user.last_login else 'Первый визит' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card h-100">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="stat-icon stat-icon--amber"><i class="bi bi-calendar3"></i></div>
+                    <div>
+                        <p class="text-muted small text-uppercase fw-semibold mb-1">Аккаунт с</p>
+                        <p class="fw-semibold mb-0 small">{{ current_user.created_at.strftime('%d.%m.%Y') if current_user.created_at else '—' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card card-elevated border-0 h-100">
+                <div class="card-header bg-transparent border-bottom py-3">
+                    <h2 class="h6 mb-0 fw-semibold"><i class="bi bi-clock-history me-2 text-primary"></i>Недавно открытые</h2>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_credentials %}
+                        <div class="list-group list-group-flush">
+                            {% for cred in recent_credentials %}
+                                <a href="{{ url_for('credential_bp.edit_credential', credential_id=cred.id) }}" class="list-group-item list-group-item-action border-0 py-3 px-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="fw-semibold d-block">{{ cred.title }}</span>
+                                            {% set st = cred.service_type if cred.service_type in svc_type_keys else 'other' %}
+                                            <span class="badge rounded-pill badge-svc badge-svc-{{ st }} mt-1">{{ svc_labels.get(cred.service_type, cred.service_type) }}</span>
+                                        </div>
+                                        <i class="bi bi-chevron-right text-muted"></i>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted px-3 py-4 mb-0">Пока нет записей — <a href="{{ url_for('credential_bp.add_credential') }}">добавьте первую</a>.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card card-elevated border-0 h-100">
+                <div class="card-header bg-transparent border-bottom py-3">
+                    <h2 class="h6 mb-0 fw-semibold"><i class="bi bi-pie-chart me-2 text-primary"></i>По типам сервисов</h2>
+                </div>
+                <div class="card-body p-0">
+                    {% if service_types %}
+                        <ul class="list-group list-group-flush">
+                            {% for stype, count in service_types.items() %}
+                                {% set st = stype if stype in svc_type_keys else 'other' %}
+                                <li class="list-group-item border-0 py-3 px-3 d-flex justify-content-between align-items-center">
+                                    <span class="badge rounded-pill badge-svc badge-svc-{{ st }}">{{ svc_labels.get(stype, stype) }}</span>
+                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary border">{{ count }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted px-3 py-4 mb-0">Нет данных для диаграммы</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

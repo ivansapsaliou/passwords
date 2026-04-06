@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Новая группа{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2 col-lg-6 offset-lg-3">
+            <div class="card card-elevated border-0">
+                <div class="card-header card-form-header text-white">
+                    <h4 class="mb-0"><i class="bi bi-folder-plus"></i> Создать группу</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            {% if form.name.errors %}
+                                {{ form.name(class="form-control is-invalid") }}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.name.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.name(class="form-control", placeholder="Например: Рабочие серверы") }}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control", rows=3, placeholder="Краткое описание") }}
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.color.label(class="form-label") }}
+                            {{ form.color() }}
+                            <small class="text-muted d-block mt-1">Метка в списке групп.</small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('credential_bp.list_credentials') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Отмена
+                            </a>
+                            {{ form.submit(class="btn btn-primary", value="Создать группу") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

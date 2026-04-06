@@ -1,0 +1,59 @@
+{# Правый сайдбар: навигация, оформление, аккаунт, быстрые действия #}
+<nav class="app-sidebar-section" aria-label="Разделы приложения">
+    <h2 class="groups-panel__title mb-2">Навигация</h2>
+    <ul class="nav flex-column gap-1 app-sidebar-nav">
+        <li class="nav-item">
+            <a class="nav-link rounded px-2 py-2 d-flex align-items-center gap-2" href="{{ url_for('main.dashboard') }}">
+                <i class="bi bi-grid-1x2"></i><span>Панель</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link rounded px-2 py-2 d-flex align-items-center gap-2" href="{{ url_for('credential_bp.list_credentials') }}">
+                <i class="bi bi-key"></i><span>Учётные данные</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<div class="app-sidebar-section">
+    <h2 class="groups-panel__title mb-2">Оформление</h2>
+    <button type="button" class="btn btn-sm btn-ghost theme-toggle w-100 justify-content-start d-flex align-items-center gap-2" title="Сменить тему">
+        <i class="bi bi-moon-stars-fill theme-icon-dark"></i>
+        <i class="bi bi-sun-fill theme-icon-light d-none"></i>
+        <span>Тема</span>
+    </button>
+</div>
+
+<div class="app-sidebar-section">
+    <h2 class="groups-panel__title mb-2">Аккаунт</h2>
+    <p class="small text-muted mb-2 px-1"><i class="bi bi-person-circle me-1"></i>{{ current_user.username }}</p>
+    <ul class="nav flex-column gap-1 app-sidebar-nav">
+        <li class="nav-item">
+            <a class="nav-link rounded px-2 py-2 d-flex align-items-center gap-2" href="{{ url_for('main.profile') }}">
+                <i class="bi bi-person"></i><span>Профиль</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link rounded px-2 py-2 d-flex align-items-center gap-2" href="{{ url_for('main.change_password') }}">
+                <i class="bi bi-key"></i><span>Смена пароля</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link rounded px-2 py-2 text-danger d-flex align-items-center gap-2" href="{{ url_for('auth.logout') }}">
+                <i class="bi bi-box-arrow-right"></i><span>Выход</span>
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="app-sidebar-section">
+    <h2 class="groups-panel__title mb-2">Быстрые действия</h2>
+    <div class="d-grid gap-2">
+        <a href="{{ url_for('credential_bp.add_credential') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Новая запись
+        </a>
+        <a href="{{ url_for('credential_bp.add_group') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-folder-plus me-1"></i>Новая группа
+        </a>
+    </div>
+</div>

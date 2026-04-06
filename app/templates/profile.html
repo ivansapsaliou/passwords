@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block content %}
+<div class="container mt-4 page-narrow">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card card-elevated border-0 mb-4">
+                <div class="card-body p-4">
+                    <h1 class="h4 mb-4"><i class="bi bi-person-circle text-primary"></i> Профиль</h1>
+                    <dl class="row mb-0 profile-dl">
+                        <dt class="col-sm-4 text-muted">Имя пользователя</dt>
+                        <dd class="col-sm-8">{{ current_user.username }}</dd>
+                        <dt class="col-sm-4 text-muted">Email</dt>
+                        <dd class="col-sm-8">{{ current_user.email }}</dd>
+                        <dt class="col-sm-4 text-muted">Регистрация</dt>
+                        <dd class="col-sm-8">{{ current_user.created_at.strftime('%d.%m.%Y %H:%M') if current_user.created_at else '—' }}</dd>
+                        <dt class="col-sm-4 text-muted">Последний вход</dt>
+                        <dd class="col-sm-8">{{ current_user.last_login.strftime('%d.%m.%Y %H:%M') if current_user.last_login else '—' }}</dd>
+                    </dl>
+                    <hr class="my-4">
+                    <a href="{{ url_for('main.change_password') }}" class="btn btn-primary">
+                        <i class="bi bi-key"></i> Сменить пароль
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

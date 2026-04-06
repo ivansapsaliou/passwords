@@ -1,0 +1,599 @@
+/* SecureVault — дизайн-токены и тема (Bootstrap 5.3 data-bs-theme) */
+
+:root,
+[data-bs-theme="light"] {
+    --sv-bg: #f4f6fb;
+    --sv-surface: #ffffff;
+    --sv-surface-2: #f1f4f9;
+    --sv-border: rgba(15, 23, 42, 0.08);
+    --sv-text: #0f172a;
+    --sv-text-muted: #64748b;
+    --sv-accent: #4f46e5;
+    --sv-accent-hover: #4338ca;
+    --sv-radius: 12px;
+    --sv-radius-sm: 8px;
+    --sv-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
+    --sv-shadow-lg: 0 4px 6px rgba(15, 23, 42, 0.04), 0 20px 48px rgba(15, 23, 42, 0.08);
+    --sv-brand-glow: rgba(79, 70, 229, 0.35);
+}
+
+[data-bs-theme="dark"] {
+    --sv-bg: #0f1419;
+    --sv-surface: #1a222d;
+    --sv-surface-2: #222b38;
+    --sv-border: rgba(248, 250, 252, 0.08);
+    --sv-text: #f1f5f9;
+    --sv-text-muted: #94a3b8;
+    --sv-accent: #818cf8;
+    --sv-accent-hover: #a5b4fc;
+    --sv-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.25);
+    --sv-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4), 0 24px 48px rgba(0, 0, 0, 0.35);
+    --sv-brand-glow: rgba(129, 140, 248, 0.35);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    height: 100%;
+}
+
+.app-body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.9375rem;
+    background: var(--sv-bg);
+    color: var(--sv-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+.app-main {
+    flex: 1 0 auto;
+    min-height: calc(100vh - 220px);
+}
+
+.app-layout-row {
+    align-items: stretch;
+}
+
+.app-sidebar-column {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+}
+
+/* На lg+ offcanvas-lg должен стать обычной колонкой; усиливаем на случай конфликтов со стилями */
+@media (min-width: 992px) {
+    .app-sidebar-column {
+        min-height: calc(100vh - 5.25rem);
+        min-height: calc(100dvh - 5.25rem);
+    }
+
+    .app-sidebar-offcanvas.offcanvas-lg.offcanvas-start {
+        position: static !important;
+        z-index: auto !important;
+        visibility: visible !important;
+        transform: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        flex: 1 1 auto !important;
+        border: 0 !important;
+        background: transparent !important;
+        pointer-events: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .app-sidebar-offcanvas.offcanvas-lg .offcanvas-body {
+        overflow: visible;
+        padding: 0;
+        max-height: none;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .app-sidebar-panel {
+        position: sticky;
+        top: 5.5rem;
+        flex: 1 1 auto;
+        min-height: calc(100vh - 5.75rem);
+        min-height: calc(100dvh - 5.75rem);
+        max-height: none;
+        overflow-y: auto;
+        align-self: stretch;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .app-sidebar-offcanvas .offcanvas-body {
+        min-height: calc(100vh - 3.75rem);
+        min-height: calc(100dvh - 3.75rem);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-sidebar-panel {
+        flex: 1 1 auto;
+    }
+}
+
+.app-sidebar-panel {
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius);
+    box-shadow: var(--sv-shadow);
+}
+
+.app-sidebar-section {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--sv-border);
+}
+
+.app-sidebar-section:last-child {
+    border-bottom: none;
+    padding-bottom: 1.25rem;
+}
+
+.app-sidebar-nav .nav-link {
+    color: var(--sv-text-muted) !important;
+    font-weight: 500;
+}
+
+.app-sidebar-nav .nav-link:hover,
+.app-sidebar-nav .nav-link:focus {
+    color: var(--sv-accent) !important;
+    background: var(--sv-surface-2);
+}
+
+.app-sidebar-nav .nav-link.text-danger {
+    color: #dc3545 !important;
+}
+
+[data-bs-theme="dark"] .app-sidebar-nav .nav-link.text-danger {
+    color: #f87171 !important;
+}
+
+.app-sidebar-panel .groups-panel {
+    background: var(--sv-surface-2);
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-sm);
+    margin-top: 0;
+}
+
+.app-sidebar-section.app-sidebar-section--flush-top-lg {
+    padding-top: 0;
+}
+
+@media (min-width: 992px) {
+    .app-sidebar-section.app-sidebar-section--flush-top-lg {
+        padding-top: 1rem;
+    }
+}
+
+/* Навбар */
+.app-navbar {
+    background: var(--sv-surface) !important;
+    backdrop-filter: blur(10px);
+}
+
+[data-bs-theme="dark"] .app-navbar {
+    background: var(--sv-surface) !important;
+}
+
+.app-navbar .navbar-brand {
+    font-size: 1.05rem;
+    color: var(--sv-text) !important;
+}
+
+.app-navbar .nav-link {
+    color: var(--sv-text-muted) !important;
+    font-weight: 500;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.app-navbar .nav-link:hover,
+.app-navbar .nav-link:focus {
+    color: var(--sv-accent) !important;
+    background: var(--sv-surface-2);
+}
+
+.app-navbar .navbar-toggler-icon {
+    filter: var(--bs-navbar-toggler-icon-filter, none);
+}
+
+.brand-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    background: linear-gradient(135deg, var(--sv-accent), #6366f1);
+    color: #fff;
+    font-size: 1.1rem;
+    box-shadow: 0 2px 8px var(--sv-brand-glow);
+}
+
+.btn-ghost {
+    border: 1px solid var(--sv-border);
+    background: var(--sv-surface-2);
+    color: var(--sv-text);
+}
+
+.btn-ghost:hover {
+    background: var(--sv-surface);
+    border-color: var(--sv-accent);
+    color: var(--sv-accent);
+}
+
+/* Подвал */
+.app-footer {
+    background: var(--sv-surface);
+    flex-shrink: 0;
+}
+
+.app-footer-inner {
+    font-size: 0.75rem;
+    line-height: 1.35;
+    opacity: 0.88;
+}
+
+/* Карточки */
+.card-elevated {
+    background: var(--sv-surface);
+    border-radius: var(--sv-radius);
+    box-shadow: var(--sv-shadow);
+    border: 1px solid var(--sv-border) !important;
+}
+
+.card-elevated:hover {
+    box-shadow: var(--sv-shadow-lg);
+}
+
+.card-form-header {
+    background: linear-gradient(135deg, var(--sv-accent), #6366f1) !important;
+    border: none;
+    border-radius: var(--sv-radius) var(--sv-radius) 0 0 !important;
+    padding: 1rem 1.25rem;
+}
+
+/* Статистика дашборда */
+.stat-card {
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius);
+    padding: 1.25rem;
+    box-shadow: var(--sv-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sv-shadow-lg);
+}
+
+.stat-card .stat-icon {
+    width: 25%;
+    min-width: 44px;
+    height: 44px;
+    border-radius: var(--sv-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.stat-icon--primary { background: rgba(79, 70, 229, 0.12); color: var(--sv-accent); }
+.stat-icon--emerald { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.stat-icon--sky { background: rgba(14, 165, 233, 0.15); color: #0ea5e9; }
+.stat-icon--amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+
+/* Auth layout */
+.auth-shell {
+    min-height: calc(100vh - 120px);
+    display: flex;
+    align-items: center;
+    padding: 2rem 0;
+}
+
+.auth-brand-panel {
+    background: linear-gradient(145deg, #312e81 0%, var(--sv-accent) 45%, #6366f1 100%);
+    color: #fff;
+    border-radius: var(--sv-radius);
+    padding: 2.5rem;
+    box-shadow: var(--sv-shadow-lg);
+    height: 100%;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+[data-bs-theme="dark"] .auth-brand-panel {
+    background: linear-gradient(145deg, #1e1b4b 0%, #3730a3 50%, #4f46e5 100%);
+}
+
+.auth-brand-panel h2 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.auth-card {
+    border-radius: var(--sv-radius);
+    border: 1px solid var(--sv-border) !important;
+    box-shadow: var(--sv-shadow-lg);
+    background: var(--sv-surface);
+}
+
+/* Формы */
+.form-control,
+.form-select {
+    border-radius: var(--sv-radius-sm);
+    border-color: var(--sv-border);
+    background: var(--sv-surface);
+    color: var(--sv-text);
+    padding: 0.65rem 0.9rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--sv-accent);
+    box-shadow: 0 0 0 3px var(--sv-brand-glow);
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--sv-text);
+    margin-bottom: 0.35rem;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--sv-accent);
+    --bs-btn-border-color: var(--sv-accent);
+    --bs-btn-hover-bg: var(--sv-accent-hover);
+    --bs-btn-hover-border-color: var(--sv-accent-hover);
+    --bs-btn-active-bg: var(--sv-accent-hover);
+    font-weight: 600;
+    border-radius: var(--sv-radius-sm);
+    padding: 0.55rem 1.25rem;
+}
+
+.btn-primary.btn-lg {
+    padding: 0.7rem 1.5rem;
+}
+
+.rounded-pill {
+    border-radius: 999px !important;
+}
+
+/* Таблица */
+.table-credentials thead th {
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--sv-text-muted);
+    border-bottom-width: 1px;
+    background: var(--sv-surface-2);
+}
+
+.table-credentials tbody tr {
+    transition: background 0.15s ease;
+}
+
+.table-credentials tbody tr:hover {
+    background: var(--sv-surface-2);
+}
+
+/* Типы сервисов (цветные бейджи) */
+.badge-svc {
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    border: none;
+    padding: 0.4em 0.75em;
+}
+
+.badge-svc-server {
+    background: rgba(13, 148, 136, 0.18);
+    color: #0f766e;
+}
+.badge-svc-database {
+    background: rgba(79, 70, 229, 0.18);
+    color: #4338ca;
+}
+.badge-svc-app {
+    background: rgba(147, 51, 234, 0.15);
+    color: #7c3aed;
+}
+.badge-svc-email {
+    background: rgba(234, 88, 12, 0.15);
+    color: #c2410c;
+}
+.badge-svc-cloud {
+    background: rgba(2, 132, 199, 0.15);
+    color: #0369a1;
+}
+.badge-svc-vpn {
+    background: rgba(220, 38, 38, 0.14);
+    color: #b91c1c;
+}
+.badge-svc-other {
+    background: var(--sv-surface-2);
+    color: var(--sv-text-muted);
+    box-shadow: inset 0 0 0 1px var(--sv-border);
+}
+
+[data-bs-theme="dark"] .badge-svc-server {
+    background: rgba(45, 212, 191, 0.2);
+    color: #5eead4;
+}
+[data-bs-theme="dark"] .badge-svc-database {
+    background: rgba(165, 180, 252, 0.22);
+    color: #c7d2fe;
+}
+[data-bs-theme="dark"] .badge-svc-app {
+    background: rgba(196, 181, 253, 0.2);
+    color: #ddd6fe;
+}
+[data-bs-theme="dark"] .badge-svc-email {
+    background: rgba(251, 146, 60, 0.2);
+    color: #fdba74;
+}
+[data-bs-theme="dark"] .badge-svc-cloud {
+    background: rgba(56, 189, 248, 0.2);
+    color: #7dd3fc;
+}
+[data-bs-theme="dark"] .badge-svc-vpn {
+    background: rgba(248, 113, 113, 0.18);
+    color: #fca5a5;
+}
+[data-bs-theme="dark"] .badge-svc-other {
+    background: var(--sv-surface-2);
+    color: var(--sv-text-muted);
+}
+
+/* Бейдж группы в таблице (цвет из базы) */
+.badge-group {
+    --gv: #6366f1;
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 0.35em 0.7em;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--gv) 16%, var(--sv-surface));
+    color: color-mix(in srgb, var(--gv) 92%, #000);
+    border: 1px solid color-mix(in srgb, var(--gv) 38%, var(--sv-border));
+}
+
+[data-bs-theme="dark"] .badge-group {
+    background: color-mix(in srgb, var(--gv) 22%, var(--sv-surface));
+    color: color-mix(in srgb, var(--gv) 70%, #fff);
+    border-color: color-mix(in srgb, var(--gv) 45%, transparent);
+}
+
+/* Боковая панель групп */
+.groups-panel {
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius);
+    box-shadow: var(--sv-shadow);
+}
+
+.groups-panel__title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sv-text-muted);
+}
+
+.group-sidebar-card {
+    --gv: #6366f1;
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-sm);
+    background: var(--sv-surface);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    overflow: hidden;
+}
+
+.group-sidebar-card:hover {
+    border-color: color-mix(in srgb, var(--gv) 40%, var(--sv-border));
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--gv) 12%, transparent);
+}
+
+.group-sidebar-card__link:hover .group-sidebar-card__name {
+    color: var(--sv-accent);
+}
+
+.group-sidebar-card__link:focus-visible {
+    outline: 2px solid var(--sv-accent);
+    outline-offset: 2px;
+}
+
+.group-sidebar-card__accent {
+    width: 4px;
+    min-height: 100%;
+    align-self: stretch;
+    background: var(--gv);
+    flex-shrink: 0;
+    border-radius: 2px 0 0 2px;
+}
+
+.group-sidebar-card__name {
+    font-size: 0.9rem;
+}
+
+.group-sidebar-card .btn-group .btn {
+    border-radius: var(--sv-radius-sm);
+}
+
+.group-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Карточки учёток (мобильные) */
+.cred-card {
+    background: var(--sv-surface);
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-sm);
+    padding: 1rem;
+}
+
+.page-narrow { max-width: 920px; margin-inline: auto; }
+
+.profile-dl dt {
+    font-weight: 500;
+}
+.profile-dl dd {
+    margin-bottom: 0.75rem;
+}
+
+/* Flash */
+.flash-stack .alert {
+    border-radius: var(--sv-radius-sm);
+}
+
+/* Pagination */
+.pagination .page-link {
+    border-radius: var(--sv-radius-sm);
+    margin: 0 2px;
+    border-color: var(--sv-border);
+    color: var(--sv-text);
+    background: var(--sv-surface);
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--sv-accent);
+    border-color: var(--sv-accent);
+}
+
+/* Утилиты */
+.text-muted {
+    color: var(--sv-text-muted) !important;
+}
+
+.dropdown-menu {
+    border-radius: var(--sv-radius-sm);
+}
+
+@media (max-width: 991.98px) {
+    .auth-brand-panel {
+        min-height: 200px;
+        margin-bottom: 1.5rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .stat-card {
+        padding: 1rem;
+    }
+}

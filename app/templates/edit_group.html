@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Редактировать группу{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2 col-lg-6 offset-lg-3">
+            <div class="card card-elevated border-0">
+                <div class="card-header card-form-header text-white">
+                    <h4 class="mb-0"><i class="bi bi-folder2-open"></i> Редактировать группу</h4>
+                    <small class="opacity-75">{{ group.name }}</small>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            {% if form.name.errors %}
+                                {{ form.name(class="form-control is-invalid") }}
+                                <div class="invalid-feedback d-block">{% for e in form.name.errors %}{{ e }}{% endfor %}</div>
+                            {% else %}
+                                {{ form.name(class="form-control") }}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control", rows=3) }}
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.color.label(class="form-label") }}
+                            {{ form.color() }}
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('credential_bp.list_credentials') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Отмена
+                            </a>
+                            {{ form.submit(class="btn btn-primary", value="Сохранить") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
