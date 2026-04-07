@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Пользователи{% endblock %}
+
+{% block content %}
+<div class="py-4 animate-fadein">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="page-title mb-1"><i class="bi bi-people me-2"></i>Пользователи</h1>
+      <p class="text-muted small mb-0">Управление учётными записями SecureVault</p>
+    </div>
+    <a href="{{ url_for('admin.admin_user_create') }}" class="btn btn-primary">
+      <i class="bi bi-person-plus me-1"></i>Создать пользователя
+    </a>
+  </div>
+
+  <div class="card-vault">
+    <div class="table-responsive">
+      <table class="table table-borderless table-hover align-middle mb-0">
+        <thead class="text-muted small">
+          <tr>
+            <th>Имя</th>
+            <th>Email</th>
+            <th>Админ</th>
+            <th>Активен</th>
+            <th>Создан</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+            <tr>
+              <td class="fw-medium">{{ u.username }}</td>
+              <td class="font-monospace small">{{ u.email }}</td>
+              <td>{% if u.is_admin %}<span class="badge text-bg-primary">да</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td>{% if u.is_active %}<span class="badge text-bg-success small">да</span>{% else %}<span class="badge text-bg-secondary small">нет</span>{% endif %}</td>
+              <td class="text-muted small">{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</td>
+              <td class="text-end">
+                <a href="{{ url_for('admin.admin_user_edit', user_id=u.id) }}" class="btn btn-sm btn-outline-secondary">Изменить</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

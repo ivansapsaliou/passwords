@@ -8,6 +8,21 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 
 
+def _bootstrap_admin():
+    """Если в системе ещё нет администратора — назначить BOOTSTRAP_ADMIN_USERNAME."""
+    uname = (os.environ.get('BOOTSTRAP_ADMIN_USERNAME') or '').strip()
+    if not uname:
+        return
+    from app.models import User
+
+    if User.query.filter_by(is_admin=True).first():
+        return
+    u = User.query.filter_by(username=uname).first()
+    if u:
+        u.is_admin = True
+        db.session.commit()
+
+
 def create_app(config_name=None):
     """Фабрика для создания приложения"""
     if config_name is None:
@@ -23,14 +38,19 @@ def create_app(config_name=None):
     login_manager.login_message = 'Пожалуйста, войдите для доступа к этой странице'
 
     # Регистрация blueprints
-    from app.routes import auth_bp, main_bp, credential_bp
+    from app.routes import auth_bp, main_bp, credential_bp, admin_bp, reveal_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(credential_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(reveal_bp)
 
     # Инициализация БД
     with app.app_context():
-        db.create_all()
+        from app.db_upgrade import upgrade_schema
+
+        upgrade_schema(db)
+        _bootstrap_admin()
 
     @login_manager.user_loader
     def load_user(user_id):

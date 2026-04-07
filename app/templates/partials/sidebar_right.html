@@ -1,59 +1,174 @@
-{# Правый сайдбар: навигация, оформление, аккаунт, быстрые действия #}
-<nav class="app-sidebar-section" aria-label="Разделы приложения">
-    <h2 class="groups-panel__title mb-2">Навигация</h2>
-    <ul class="nav flex-column gap-1 app-sidebar-nav">
-        <li class="nav-item">
-            <a class="nav-link rounded px-2 py-2 d-flex align-items-center gap-2" href="{{ url_for('main.dashboard') }}">
-                <i class="bi bi-grid-1x2"></i><span>Панель</span>
+{# partials/sidebar_right.html — GitLab-style left sidebar #}
+
+{# ── Project header ── #}
+<div class="sv-sidebar-project">
+  <div class="sv-sidebar-project-icon">SV</div>
+  <span class="sv-sidebar-project-name">SecureVault</span>
+</div>
+
+{# ── Main navigation ── #}
+<nav aria-label="Основная навигация">
+
+  {# Overview group #}
+  <span class="sv-sidebar-section-label">Обзор</span>
+  <ul class="sv-nav">
+    <li class="sv-nav-item">
+      <a class="sv-nav-link" href="{{ url_for('main.dashboard') }}">
+        <span class="sv-nav-icon"><i class="bi bi-grid-1x2-fill"></i></span>
+        <span>Панель</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="sv-sidebar-divider"></div>
+
+  {# Credentials group (collapsible) #}
+  <span class="sv-sidebar-section-label">Хранилище</span>
+  <ul class="sv-nav">
+    <li class="sv-nav-item">
+      <a class="sv-nav-link" href="{{ url_for('credential_bp.list_credentials') }}">
+        <span class="sv-nav-icon"><i class="bi bi-key-fill"></i></span>
+        <span>Учётные данные</span>
+        <span class="sv-nav-badge {% if current_user.credentials.count() == 0 %}sv-nav-badge-0{% endif %}">
+          {{ current_user.credentials.count() }}
+        </span>
+      </a>
+    </li>
+
+    {# Groups sub-section: inline collapsible #}
+    <li class="sv-nav-item">
+      <button class="sv-nav-link"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#sbGroups"
+              aria-expanded="false"
+              aria-controls="sbGroups">
+        <span class="sv-nav-icon"><i class="bi bi-folder2-open"></i></span>
+        <span>Группы</span>
+        <span class="sv-nav-badge {% if current_user.groups.count() == 0 %}sv-nav-badge-0{% endif %}">
+          {{ current_user.groups.count() }}
+        </span>
+        <i class="bi bi-chevron-right sv-nav-arrow ms-1"></i>
+      </button>
+      <div class="collapse" id="sbGroups">
+        <ul class="sv-subnav">
+          {% set groups = current_user.groups.order_by('name').all() %}
+          {% if groups %}
+            {% for g in groups %}
+              <li>
+                <a class="sv-subnav-link" href="{{ url_for('credential_bp.list_credentials', group_id=g.id) }}">
+                  {# Color dot #}
+                  <span style="width:7px;height:7px;border-radius:50%;background:{{ g.color or '#f59e0b' }};flex-shrink:0;display:inline-block;"></span>
+                  <span class="text-truncate">{{ g.name }}</span>
+                  <span class="sv-nav-badge sv-nav-badge-0">{{ g.credentials.count() }}</span>
+                </a>
+              </li>
+            {% endfor %}
+            <li>
+              <a class="sv-subnav-link" href="{{ url_for('credential_bp.add_group') }}"
+                 style="color: var(--accent); opacity: 0.8;">
+                <span class="sv-nav-icon" style="font-size:0.8rem;"><i class="bi bi-plus-lg"></i></span>
+                <span>Новая группа</span>
+              </a>
+            </li>
+          {% else %}
+            <li>
+              <a class="sv-subnav-link" href="{{ url_for('credential_bp.add_group') }}"
+                 style="color: var(--accent); opacity: 0.8;">
+                <span class="sv-nav-icon" style="font-size:0.8rem;"><i class="bi bi-plus-lg"></i></span>
+                <span>Создать группу</span>
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </li>
+
+    <li class="sv-nav-item">
+      <a class="sv-nav-link" href="{{ url_for('credential_bp.add_credential') }}"
+         style="color: var(--accent);">
+        <span class="sv-nav-icon" style="color:var(--accent);"><i class="bi bi-plus-circle-fill"></i></span>
+        <span>Добавить запись</span>
+      </a>
+    </li>
+  </ul>
+
+  {% if current_user.is_admin %}
+  <div class="sv-sidebar-divider"></div>
+  <span class="sv-sidebar-section-label">Администрирование</span>
+  <ul class="sv-nav">
+    <li class="sv-nav-item">
+      <a class="sv-nav-link" href="{{ url_for('admin.admin_user_list') }}">
+        <span class="sv-nav-icon"><i class="bi bi-people-fill"></i></span>
+        <span>Пользователи</span>
+      </a>
+    </li>
+    <li class="sv-nav-item">
+      <a class="sv-nav-link" href="{{ url_for('admin.admin_delivery_settings') }}">
+        <span class="sv-nav-icon"><i class="bi bi-envelope-at"></i></span>
+        <span>Почта и Telegram</span>
+      </a>
+    </li>
+    <li class="sv-nav-item">
+      <a class="sv-nav-link" href="{{ url_for('admin.admin_audit_log') }}">
+        <span class="sv-nav-icon"><i class="bi bi-journal-text"></i></span>
+        <span>Журнал действий</span>
+      </a>
+    </li>
+  </ul>
+  {% endif %}
+
+  <div class="sv-sidebar-divider"></div>
+
+  {# Account group #}
+  <span class="sv-sidebar-section-label">Аккаунт</span>
+  <ul class="sv-nav">
+    <li class="sv-nav-item">
+      <button class="sv-nav-link"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#sbAccount"
+              aria-expanded="false"
+              aria-controls="sbAccount">
+        <span class="sv-nav-icon"><i class="bi bi-person-circle"></i></span>
+        <span class="text-truncate">{{ current_user.username }}</span>
+        <i class="bi bi-chevron-right sv-nav-arrow ms-1"></i>
+      </button>
+      <div class="collapse" id="sbAccount">
+        <ul class="sv-subnav">
+          <li>
+            <a class="sv-subnav-link" href="{{ url_for('main.profile') }}">
+              <i class="bi bi-person" style="font-size:0.8rem;color:var(--sv-sidebar-icon);"></i>
+              <span>Профиль</span>
             </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link rounded px-2 py-2 d-flex align-items-center gap-2" href="{{ url_for('credential_bp.list_credentials') }}">
-                <i class="bi bi-key"></i><span>Учётные данные</span>
+          </li>
+          <li>
+            <a class="sv-subnav-link" href="{{ url_for('main.change_password') }}">
+              <i class="bi bi-shield-lock" style="font-size:0.8rem;color:var(--sv-sidebar-icon);"></i>
+              <span>Смена пароля</span>
             </a>
-        </li>
-    </ul>
+          </li>
+          <li>
+            <a class="sv-subnav-link" href="{{ url_for('auth.logout') }}"
+               style="color: var(--rose-400, #fb7185);">
+              <i class="bi bi-box-arrow-right" style="font-size:0.8rem;"></i>
+              <span>Выйти</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </li>
+  </ul>
+
 </nav>
 
-<div class="app-sidebar-section">
-    <h2 class="groups-panel__title mb-2">Оформление</h2>
-    <button type="button" class="btn btn-sm btn-ghost theme-toggle w-100 justify-content-start d-flex align-items-center gap-2" title="Сменить тему">
-        <i class="bi bi-moon-stars-fill theme-icon-dark"></i>
-        <i class="bi bi-sun-fill theme-icon-light d-none"></i>
-        <span>Тема</span>
-    </button>
-</div>
-
-<div class="app-sidebar-section">
-    <h2 class="groups-panel__title mb-2">Аккаунт</h2>
-    <p class="small text-muted mb-2 px-1"><i class="bi bi-person-circle me-1"></i>{{ current_user.username }}</p>
-    <ul class="nav flex-column gap-1 app-sidebar-nav">
-        <li class="nav-item">
-            <a class="nav-link rounded px-2 py-2 d-flex align-items-center gap-2" href="{{ url_for('main.profile') }}">
-                <i class="bi bi-person"></i><span>Профиль</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link rounded px-2 py-2 d-flex align-items-center gap-2" href="{{ url_for('main.change_password') }}">
-                <i class="bi bi-key"></i><span>Смена пароля</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link rounded px-2 py-2 text-danger d-flex align-items-center gap-2" href="{{ url_for('auth.logout') }}">
-                <i class="bi bi-box-arrow-right"></i><span>Выход</span>
-            </a>
-        </li>
-    </ul>
-</div>
-
-<div class="app-sidebar-section">
-    <h2 class="groups-panel__title mb-2">Быстрые действия</h2>
-    <div class="d-grid gap-2">
-        <a href="{{ url_for('credential_bp.add_credential') }}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-circle me-1"></i>Новая запись
-        </a>
-        <a href="{{ url_for('credential_bp.add_group') }}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-folder-plus me-1"></i>Новая группа
-        </a>
-    </div>
+{# ── Bottom actions ── #}
+<div class="sv-sidebar-actions">
+  <button type="button" class="sv-theme-btn theme-toggle" title="Сменить тему">
+    <span class="sv-nav-icon">
+      <i class="bi bi-moon-stars-fill theme-icon-dark"></i>
+      <i class="bi bi-sun-fill theme-icon-light d-none"></i>
+    </span>
+    <span>Тема</span>
+  </button>
 </div>

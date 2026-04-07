@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Журнал действий{% endblock %}
+
+{% block content %}
+<div class="py-4 animate-fadein">
+  <div class="mb-4">
+    <h1 class="page-title mb-1"><i class="bi bi-journal-text me-2"></i>Журнал действий</h1>
+    <p class="text-muted small mb-0">Кто что сделал: доступ к записям, одноразовые ссылки, уведомления, пользователи и настройки.</p>
+  </div>
+
+  <div class="card-vault mb-4">
+    <div class="p-3">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label small text-muted mb-1">Тип события</label>
+          <select class="form-select" name="action">
+            <option value="">Все</option>
+            {% for a in all_actions %}
+              <option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ action_labels.get(a, a) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label small text-muted mb-1">Поиск в описании / JSON</label>
+          <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="Фрагмент текста…">
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1"><i class="bi bi-search me-1"></i>Фильтр</button>
+          <a href="{{ url_for('admin.admin_audit_log') }}" class="btn btn-outline-secondary">Сброс</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card-vault">
+    <div class="table-responsive">
+      <table class="table table-borderless table-hover align-middle mb-0" style="font-size:0.9rem;">
+        <thead class="text-muted small">
+          <tr>
+            <th style="white-space:nowrap;">Время (UTC)</th>
+            <th>Кто</th>
+            <th>Тип</th>
+            <th>Событие</th>
+            <th class="d-none d-lg-table-cell">IP</th>
+            <th class="d-none d-xl-table-cell">Детали</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in logs.items %}
+            <tr>
+              <td class="text-muted small font-monospace">{{ entry.created_at.strftime('%d.%m.%Y %H:%M:%S') if entry.created_at else '—' }}</td>
+              <td>
+                {% if entry.actor %}
+                  <span class="fw-medium">{{ entry.actor.username }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge text-bg-secondary text-wrap">{{ action_labels.get(entry.action, entry.action) }}</span>
+              </td>
+              <td style="max-width:28rem;">{{ entry.summary }}</td>
+              <td class="d-none d-lg-table-cell small font-monospace text-muted">{{ entry.ip_address or '—' }}</td>
+              <td class="d-none d-xl-table-cell small">
+                {% if entry.details_json %}
+                  <code class="d-block text-break text-start p-2 rounded mb-0" style="max-width:22rem;max-height:6rem;overflow:auto;white-space:pre-wrap;font-size:0.72rem;background:var(--bs-secondary-bg);">{{ entry.details_json }}</code>
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center py-5 text-muted">Записей нет</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if logs.pages > 1 %}
+    <nav class="mt-4" aria-label="Страницы журнала">
+      <ul class="pagination justify-content-center flex-wrap mb-0 gap-1">
+        {% if logs.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.admin_audit_log', page=logs.prev_num, action=action_filter or none, q=q or none) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+        {% endif %}
+        {% for page_num in logs.iter_pages() %}
+          {% if page_num %}
+            <li class="page-item {% if page_num == logs.page %}active{% endif %}">
+              {% if page_num == logs.page %}
+                <span class="page-link">{{ page_num }}</span>
+              {% else %}
+                <a class="page-link" href="{{ url_for('admin.admin_audit_log', page=page_num, action=action_filter or none, q=q or none) }}">{{ page_num }}</a>
+              {% endif %}
+            </li>
+          {% endif %}
+        {% endfor %}
+        {% if logs.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('admin.admin_audit_log', page=logs.next_num, action=action_filter or none, q=q or none) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+
+  <p class="text-dim small mt-3 mb-0">
+    Открытие одноразовой ссылки без имени пользователя — событие записывается с пустым «Кто» (публичная страница).
+  </p>
+</div>
+{% endblock %}

@@ -1,73 +1,74 @@
 {% extends "base.html" %}
-
 {% block title %}Вход{% endblock %}
 
 {% block content %}
 <div class="auth-shell">
-    <div class="container">
-        <div class="row g-4 align-items-stretch">
-            <div class="col-lg-5 d-none d-lg-flex">
-                <div class="auth-brand-panel w-100">
-                    <i class="bi bi-shield-lock display-4 mb-3 opacity-90"></i>
-                    <h2 class="mb-3">SecureVault</h2>
-                    <p class="opacity-90 mb-0 lead fs-6">Храните пароли в зашифрованном виде и управляйте доступом из одного места.</p>
-                </div>
+  <div class="container">
+    <div class="row g-4 align-items-stretch justify-content-center">
+
+      <!-- Brand panel -->
+      <div class="col-lg-5 d-none d-lg-flex animate-fadein">
+        <div class="auth-brand-panel w-100">
+          <i class="bi bi-shield-lock-fill auth-brand-icon"></i>
+          <h2 class="auth-brand-title">SecureVault</h2>
+          <p class="auth-brand-desc">Храните пароли в зашифрованном виде и управляйте доступом из одного места.</p>
+
+          <div class="mt-4 pt-2" style="border-top:1px solid rgba(255,255,255,0.06);">
+            <div class="d-flex flex-column gap-2">
+              {% for feature in [('bi-lock-fill', 'Шифрование Fernet'), ('bi-folder2-open', 'Группировка записей'), ('bi-moon-stars-fill', 'Тёмная тема')] %}
+              <div class="d-flex align-items-center gap-2" style="color:rgba(255,255,255,0.45);font-size:0.83rem;">
+                <i class="bi {{ feature[0] }}" style="color:rgba(245,158,11,0.6);width:1rem;"></i>
+                <span>{{ feature[1] }}</span>
+              </div>
+              {% endfor %}
             </div>
-            <div class="col-lg-7">
-                <div class="card auth-card border-0">
-                    <div class="card-body p-4 p-md-5">
-                        <div class="d-lg-none text-center mb-4">
-                            <span class="brand-icon rounded d-inline-flex align-items-center justify-content-center mb-3" style="width:3rem;height:3rem;">
-                                <i class="bi bi-shield-lock"></i>
-                            </span>
-                            <h2 class="h4 fw-bold">SecureVault</h2>
-                            <p class="text-muted small mb-0">Вход в аккаунт</p>
-                        </div>
-                        <h2 class="h4 fw-bold d-none d-lg-block mb-1">Вход</h2>
-                        <p class="text-muted small d-none d-lg-block mb-4">Введите имя пользователя и пароль</p>
-
-                        <form method="POST" novalidate>
-                            {{ form.hidden_tag() }}
-
-                            <div class="mb-3">
-                                {{ form.username.label(class="form-label") }}
-                                {% if form.username.errors %}
-                                    {{ form.username(class="form-control is-invalid", autofocus=True, autocomplete="username") }}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.username.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                {% else %}
-                                    {{ form.username(class="form-control", placeholder="Имя пользователя", autofocus=True, autocomplete="username") }}
-                                {% endif %}
-                            </div>
-
-                            <div class="mb-4">
-                                {{ form.password.label(class="form-label") }}
-                                {% if form.password.errors %}
-                                    {{ form.password(class="form-control is-invalid", autocomplete="current-password") }}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.password.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                {% else %}
-                                    {{ form.password(class="form-control", placeholder="Пароль", autocomplete="current-password") }}
-                                {% endif %}
-                            </div>
-
-                            <div class="d-grid">
-                                {{ form.submit(class="btn btn-primary btn-lg", value="Войти") }}
-                            </div>
-                        </form>
-
-                        <hr class="my-4">
-
-                        <p class="text-center text-muted small mb-0">
-                            Нет аккаунта?
-                            <a href="{{ url_for('auth.register') }}" class="fw-semibold text-decoration-none">Зарегистрируйтесь</a>
-                        </p>
-                    </div>
-                </div>
-            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- Form card -->
+      <div class="col-lg-7 col-xl-5 animate-fadein-1">
+        <div class="card auth-card border-0">
+          <div class="card-body p-4 p-md-5">
+            <div class="d-lg-none text-center mb-4">
+              <div class="brand-icon mx-auto mb-3" style="width:3rem;height:3rem;font-size:1.25rem;border-radius:var(--radius);">
+                <i class="bi bi-shield-lock-fill"></i>
+              </div>
+              <h2 class="h4 fw-bold" style="font-family:var(--font-display);">SecureVault</h2>
+            </div>
+
+            <h2 class="mb-1 d-none d-lg-block" style="font-family:var(--font-display);font-size:1.5rem;">Вход в аккаунт</h2>
+            <p class="text-muted mb-4 d-none d-lg-block" style="font-size:0.875rem;">Введите имя пользователя и пароль</p>
+
+            <form method="POST" novalidate>
+              {{ form.hidden_tag() }}
+              <div class="mb-3">
+                {{ form.username.label(class="form-label") }}
+                {% if form.username.errors %}
+                  {{ form.username(class="form-control is-invalid", autofocus=True, autocomplete="username") }}
+                  <div class="invalid-feedback d-block">{% for e in form.username.errors %}{{ e }}{% endfor %}</div>
+                {% else %}
+                  {{ form.username(class="form-control", placeholder="Имя пользователя", autofocus=True, autocomplete="username") }}
+                {% endif %}
+              </div>
+              <div class="mb-4">
+                {{ form.password.label(class="form-label") }}
+                {% if form.password.errors %}
+                  {{ form.password(class="form-control is-invalid", autocomplete="current-password") }}
+                  <div class="invalid-feedback d-block">{% for e in form.password.errors %}{{ e }}{% endfor %}</div>
+                {% else %}
+                  {{ form.password(class="form-control", placeholder="Пароль", autocomplete="current-password") }}
+                {% endif %}
+              </div>
+              <div class="d-grid mb-3">
+                {{ form.submit(class="btn btn-primary btn-xl w-100", value="Войти") }}
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
     </div>
+  </div>
 </div>
 {% endblock %}

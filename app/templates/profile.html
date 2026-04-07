@@ -1,31 +1,38 @@
 {% extends "base.html" %}
-
 {% block title %}Профиль{% endblock %}
-
 {% block content %}
-<div class="container mt-4 page-narrow">
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card card-elevated border-0 mb-4">
-                <div class="card-body p-4">
-                    <h1 class="h4 mb-4"><i class="bi bi-person-circle text-primary"></i> Профиль</h1>
-                    <dl class="row mb-0 profile-dl">
-                        <dt class="col-sm-4 text-muted">Имя пользователя</dt>
-                        <dd class="col-sm-8">{{ current_user.username }}</dd>
-                        <dt class="col-sm-4 text-muted">Email</dt>
-                        <dd class="col-sm-8">{{ current_user.email }}</dd>
-                        <dt class="col-sm-4 text-muted">Регистрация</dt>
-                        <dd class="col-sm-8">{{ current_user.created_at.strftime('%d.%m.%Y %H:%M') if current_user.created_at else '—' }}</dd>
-                        <dt class="col-sm-4 text-muted">Последний вход</dt>
-                        <dd class="col-sm-8">{{ current_user.last_login.strftime('%d.%m.%Y %H:%M') if current_user.last_login else '—' }}</dd>
-                    </dl>
-                    <hr class="my-4">
-                    <a href="{{ url_for('main.change_password') }}" class="btn btn-primary">
-                        <i class="bi bi-key"></i> Сменить пароль
-                    </a>
-                </div>
-            </div>
-        </div>
+<div class="py-4 page-narrow animate-fadein">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div class="page-title-icon"><i class="bi bi-person-fill"></i></div>
+    <h1 class="page-title mb-0">Профиль</h1>
+  </div>
+
+  <div class="card-vault">
+    <div class="card-vault-header">
+      <span class="card-vault-title">
+        <i class="bi bi-info-circle title-icon"></i>
+        Информация об аккаунте
+      </span>
     </div>
+    <div class="p-4">
+      <dl class="row mb-0 profile-dl">
+        <dt class="col-sm-4">Имя пользователя</dt>
+        <dd class="col-sm-8">{{ current_user.username }}</dd>
+        <dt class="col-sm-4">Email</dt>
+        <dd class="col-sm-8">{{ current_user.email }}</dd>
+        <dt class="col-sm-4">Регистрация</dt>
+        <dd class="col-sm-8">{{ current_user.created_at.strftime('%d.%m.%Y %H:%M') if current_user.created_at else '—' }}</dd>
+        <dt class="col-sm-4">Последний вход</dt>
+        <dd class="col-sm-8 mb-0">{{ current_user.last_login.strftime('%d.%m.%Y %H:%M') if current_user.last_login else '—' }}</dd>
+      </dl>
+    </div>
+    <div class="p-4 pt-0">
+      <div style="border-top:1px solid var(--border);padding-top:1.25rem;">
+        <a href="{{ url_for('main.change_password') }}" class="btn btn-primary">
+          <i class="bi bi-shield-lock me-1"></i>Сменить пароль
+        </a>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

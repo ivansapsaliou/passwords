@@ -14,9 +14,16 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
     credentials = db.relationship('Credential', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
     groups = db.relationship('CredentialGroup', backref='creator', lazy='dynamic', cascade='all, delete-orphan')
+    shares_received = db.relationship(
+        'CredentialShare',
+        foreign_keys='CredentialShare.shared_with_user_id',
+        back_populates='shared_with_user',
+        lazy='dynamic',
+    )
 
     def set_password(self, password):
         """Устанавливает пароль"""
@@ -66,6 +73,19 @@ class Credential(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_accessed = db.Column(db.DateTime)
 
+    shares = db.relationship(
+        'CredentialShare',
+        back_populates='credential',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+    )
+    reveal_tokens = db.relationship(
+        'CredentialRevealToken',
+        back_populates='credential',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+    )
+
     def set_credentials(self, username, password):
         """Устанавливает и шифрует логин и пароль."""
         manager = EncryptionManager()
@@ -103,3 +123,84 @@ class Credential(db.Model):
 
     def __repr__(self):
         return f'<Credential {self.title}>'
+
+
+class CredentialShare(db.Model):
+    """Доступ другого пользователя к записи владельца (только чтение / копирование)."""
+
+    __tablename__ = 'credential_share'
+    __table_args__ = (
+        db.UniqueConstraint('credential_id', 'shared_with_user_id', name='uq_credential_share_user'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    credential_id = db.Column(db.Integer, db.ForeignKey('credential.id', ondelete='CASCADE'), nullable=False)
+    shared_with_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    shared_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    credential = db.relationship('Credential', back_populates='shares')
+    shared_with_user = db.relationship('User', foreign_keys=[shared_with_user_id], back_populates='shares_received')
+    shared_by_user = db.relationship('User', foreign_keys=[shared_by_user_id])
+
+    def __repr__(self):
+        return f'<CredentialShare cred={self.credential_id} user={self.shared_with_user_id}>'
+
+
+class CredentialRevealToken(db.Model):
+    """Одноразовая ссылка на показ логина и пароля (только храним хэш токена)."""
+
+    __tablename__ = 'credential_reveal_token'
+
+    id = db.Column(db.Integer, primary_key=True)
+    credential_id = db.Column(db.Integer, db.ForeignKey('credential.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+
+    credential = db.relationship('Credential', back_populates='reveal_tokens')
+    created_by_user = db.relationship('User', foreign_keys=[created_by_user_id])
+
+    def __repr__(self):
+        return f'<CredentialRevealToken cred={self.credential_id} used={self.used_at is not None}>'
+
+
+class DeliverySettings(db.Model):
+    """Единственная строка настроек доставки (SMTP, Telegram, URL для OTT). Пустое поле в БД = взять из env/config."""
+
+    __tablename__ = 'delivery_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    mail_server = db.Column(db.String(255))
+    mail_port = db.Column(db.Integer)
+    mail_use_tls = db.Column(db.Boolean)
+    mail_username = db.Column(db.String(255))
+    mail_default_sender = db.Column(db.String(255))
+    mail_password_encrypted = db.Column(db.Text)
+    telegram_bot_token_encrypted = db.Column(db.Text)
+    public_base_url = db.Column(db.String(512))
+    ott_link_expires_hours = db.Column(db.Integer)
+
+    def __repr__(self):
+        return '<DeliverySettings id=1>'
+
+
+class AuditLog(db.Model):
+    """Журнал действий для администраторов (аудит)."""
+
+    __tablename__ = 'audit_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True)
+    action = db.Column(db.String(64), nullable=False, index=True)
+    summary = db.Column(db.Text, nullable=False)
+    details_json = db.Column(db.Text)
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(512))
+
+    actor = db.relationship('User', foreign_keys=[actor_user_id])
+
+    def __repr__(self):
+        return f'<AuditLog {self.action} {self.created_at}>'

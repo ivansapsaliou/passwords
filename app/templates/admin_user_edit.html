@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Пользователь: {{ edit_user.username }}{% endblock %}
+
+{% block content %}
+<div class="py-4 page-narrow animate-fadein">
+  <div class="mb-4">
+    <a href="{{ url_for('admin.admin_user_list') }}" class="btn btn-sm btn-outline-secondary mb-3">
+      <i class="bi bi-arrow-left me-1"></i>К списку
+    </a>
+    <h1 class="page-title mb-1"><i class="bi bi-pencil me-2"></i>{{ edit_user.username }}</h1>
+    <p class="text-muted small mb-0">Изменение учётной записи.</p>
+  </div>
+
+  <div class="card-form">
+    <div class="p-4 p-md-5">
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+          {{ form.username.label(class="form-label") }}
+          {% if form.username.errors %}
+            {{ form.username(class="form-control is-invalid") }}
+            <div class="invalid-feedback d-block">{% for e in form.username.errors %}{{ e }}{% endfor %}</div>
+          {% else %}
+            {{ form.username(class="form-control") }}
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          {{ form.email.label(class="form-label") }}
+          {% if form.email.errors %}
+            {{ form.email(class="form-control is-invalid") }}
+            <div class="invalid-feedback d-block">{% for e in form.email.errors %}{{ e }}{% endfor %}</div>
+          {% else %}
+            {{ form.email(class="form-control") }}
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          {{ form.new_password.label(class="form-label") }}
+          {{ form.new_password(class="form-control") }}
+          {% if form.new_password.errors %}<div class="invalid-feedback d-block">{{ form.new_password.errors[0] }}</div>{% endif %}
+        </div>
+        <div class="mb-3">
+          {{ form.confirm_password.label(class="form-label") }}
+          {{ form.confirm_password(class="form-control") }}
+        </div>
+        <div class="form-check mb-2">
+          {{ form.is_active(class="form-check-input") }}
+          {{ form.is_active.label(class="form-check-label") }}
+        </div>
+        <div class="form-check mb-4">
+          {{ form.grant_admin(class="form-check-input") }}
+          {{ form.grant_admin.label(class="form-check-label") }}
+        </div>
+
+        {{ form.submit(class="btn btn-primary btn-lg") }}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

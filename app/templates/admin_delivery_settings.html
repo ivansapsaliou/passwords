@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Почта и Telegram{% endblock %}
+
+{% block content %}
+<div class="py-4 animate-fadein">
+  <div class="mb-4">
+    <h1 class="page-title mb-1"><i class="bi bi-envelope-at me-2"></i>Доставка одноразовых ссылок</h1>
+    <p class="text-muted small mb-0">
+      Сохранённые ниже значения перекрывают переменные окружения. Пустое поле (кроме секретов) сбрасывает переопределение — снова используется .env.
+      Секреты: оставьте поле пустым, чтобы не менять уже сохранённое.
+    </p>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card-vault h-100">
+        <div class="card-vault-header">
+          <div class="card-vault-title">
+            <span class="title-icon"><i class="bi bi-envelope"></i></span>
+            SMTP (письма)
+          </div>
+        </div>
+        <div class="p-4">
+          <p class="mb-3">
+            {% if mail_on %}
+              <span class="badge text-bg-success">Готово к отправке</span>
+            {% else %}
+              <span class="badge text-bg-warning text-dark">Заполните сервер и отправителя</span>
+            {% endif %}
+            {% if mail_pwd_in_db %}
+              <span class="badge text-bg-secondary ms-1">Пароль SMTP хранится в БД</span>
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card-vault h-100">
+        <div class="card-vault-header">
+          <div class="card-vault-title">
+            <span class="title-icon"><i class="bi bi-send"></i></span>
+            Telegram
+          </div>
+        </div>
+        <div class="p-4">
+          <p class="mb-3">
+            {% if telegram_on %}
+              <span class="badge text-bg-success">Токен задан</span>
+            {% else %}
+              <span class="badge text-bg-warning text-dark">Нужен токен бота</span>
+            {% endif %}
+            {% if tg_token_in_db %}
+              <span class="badge text-bg-secondary ms-1">Токен в БД</span>
+            {% endif %}
+          </p>
+          <p class="text-muted small mb-0">
+            Бот: <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>.
+            Получатель пишет боту <code>/start</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-form">
+    <div class="p-4 p-md-5">
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <h5 class="mb-3"><i class="bi bi-envelope me-2"></i>SMTP</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-md-8">
+            {{ form.mail_server.label(class="form-label") }}
+            {{ form.mail_server(class="form-control font-monospace") }}
+          </div>
+          <div class="col-md-4">
+            {{ form.mail_port.label(class="form-label") }}
+            {{ form.mail_port(class="form-control") }}
+            {% if form.mail_port.errors %}
+              <div class="invalid-feedback d-block">{{ form.mail_port.errors[0] }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            {{ form.mail_tls_mode.label(class="form-label") }}
+            {{ form.mail_tls_mode(class="form-select") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.mail_default_sender.label(class="form-label") }}
+            {{ form.mail_default_sender(class="form-control font-monospace") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.mail_username.label(class="form-label") }}
+            {{ form.mail_username(class="form-control") }}
+          </div>
+          <div class="col-md-6">
+            {{ form.mail_password_new.label(class="form-label") }}
+            {{ form.mail_password_new(class="form-control") }}
+          </div>
+        </div>
+
+        <h5 class="mb-3"><i class="bi bi-send me-2"></i>Telegram</h5>
+        <div class="mb-4">
+          {{ form.telegram_bot_token_new.label(class="form-label") }}
+          {{ form.telegram_bot_token_new(class="form-control font-monospace") }}
+        </div>
+
+        <h5 class="mb-3"><i class="bi bi-link-45deg me-2"></i>Ссылки</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-md-8">
+            {{ form.public_base_url.label(class="form-label") }}
+            {{ form.public_base_url(class="form-control font-monospace") }}
+            <p class="text-dim small mt-1 mb-0">За reverse-proxy укажите публичный https://… Пусто — берётся из текущего запроса при генерации ссылки.</p>
+          </div>
+          <div class="col-md-4">
+            {{ form.ott_link_expires_hours.label(class="form-label") }}
+            {{ form.ott_link_expires_hours(class="form-control") }}
+            {% if form.ott_link_expires_hours.errors %}
+              <div class="invalid-feedback d-block">{{ form.ott_link_expires_hours.errors[0] }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {{ form.submit(class="btn btn-primary btn-lg") }}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

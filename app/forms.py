@@ -1,34 +1,18 @@
 import json
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, TextAreaField, SelectField, IntegerField, SubmitField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional
+from wtforms import (
+    StringField,
+    PasswordField,
+    TextAreaField,
+    SelectField,
+    IntegerField,
+    SubmitField,
+    HiddenField,
+    RadioField,
+    BooleanField,
+)
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional, NumberRange
 from app.models import User
-
-
-class RegistrationForm(FlaskForm):
-    """Форма регистрации"""
-    username = StringField('Имя пользователя', validators=[
-        DataRequired(),
-        Length(min=3, max=80, message='Имя должно быть от 3 до 80 символов')
-    ])
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Пароль', validators=[
-        DataRequired(),
-        Length(min=8, message='Пароль должен быть не менее 8 символов')
-    ])
-    confirm_password = PasswordField('Подтверждение пароля', validators=[
-        DataRequired(),
-        EqualTo('password', message='Пароли не совпадают')
-    ])
-    submit = SubmitField('Зарегистрироваться')
-
-    def validate_username(self, field):
-        if User.query.filter_by(username=field.data).first():
-            raise ValidationError('Это имя уже занято')
-
-    def validate_email(self, field):
-        if User.query.filter_by(email=field.data).first():
-            raise ValidationError('Этот email уже зарегистрирован')
 
 
 class LoginForm(FlaskForm):
@@ -83,6 +67,51 @@ class GroupForm(FlaskForm):
     submit = SubmitField('Создать группу')
 
 
+class ShareCredentialForm(FlaskForm):
+    """Выдача доступа к записи другому пользователю по имени (логину)."""
+    username = StringField('Имя пользователя', validators=[
+        DataRequired(),
+        Length(min=3, max=80, message='Укажите имя пользователя (3–80 символов)'),
+    ])
+    share_return = HiddenField(default='edit', validators=[Optional()])
+    submit_share = SubmitField('Поделиться')
+
+
+class AdminDeliverySettingsForm(FlaskForm):
+    """Настройки SMTP, Telegram и публичного URL (сохранение в БД перекрывает env)."""
+    mail_server = StringField('SMTP-сервер', validators=[Optional(), Length(max=255)])
+    mail_port = IntegerField('Порт', validators=[Optional()])
+    mail_tls_mode = SelectField(
+        'STARTTLS',
+        choices=[
+            ('env', 'Как в окружении'),
+            ('yes', 'Включить'),
+            ('no', 'Выключить'),
+        ],
+        validators=[DataRequired()],
+    )
+    mail_username = StringField('Имя пользователя SMTP', validators=[Optional(), Length(max=255)])
+    mail_default_sender = StringField('Адрес отправителя', validators=[Optional(), Length(max=255)])
+    mail_password_new = PasswordField(
+        'Пароль SMTP (оставьте пустым, чтобы не менять)',
+        validators=[Optional()],
+    )
+    telegram_bot_token_new = PasswordField(
+        'Токен бота Telegram (оставьте пустым, чтобы не менять)',
+        validators=[Optional()],
+    )
+    public_base_url = StringField(
+        'Публичный базовый URL',
+        validators=[Optional(), Length(max=512)],
+        render_kw={'placeholder': 'https://vault.example.com'},
+    )
+    ott_link_expires_hours = IntegerField(
+        'Срок жизни одноразовой ссылки (часы)',
+        validators=[Optional(), NumberRange(min=1, max=8760)],
+    )
+    submit = SubmitField('Сохранить настройки')
+
+
 class ChangePasswordForm(FlaskForm):
     """Смена пароля аккаунта"""
     current_password = PasswordField('Текущий пароль', validators=[DataRequired()])
@@ -95,3 +124,102 @@ class ChangePasswordForm(FlaskForm):
         EqualTo('new_password', message='Пароли не совпадают'),
     ])
     submit = SubmitField('Обновить пароль')
+
+
+class AdminCreateUserForm(FlaskForm):
+    """Создание пользователя администратором"""
+    username = StringField('Имя пользователя', validators=[
+        DataRequired(),
+        Length(min=3, max=80, message='Имя должно быть от 3 до 80 символов'),
+    ])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Пароль', validators=[
+        DataRequired(),
+        Length(min=8, message='Пароль должен быть не менее 8 символов'),
+    ])
+    confirm_password = PasswordField('Подтверждение пароля', validators=[
+        DataRequired(),
+        EqualTo('password', message='Пароли не совпадают'),
+    ])
+    grant_admin = BooleanField('Права администратора', default=False)
+    submit = SubmitField('Создать пользователя')
+
+    def validate_username(self, field):
+        if User.query.filter_by(username=field.data).first():
+            raise ValidationError('Это имя уже занято')
+
+    def validate_email(self, field):
+        if User.query.filter_by(email=field.data).first():
+            raise ValidationError('Этот email уже зарегистрирован')
+
+
+class AdminEditUserForm(FlaskForm):
+    """Редактирование пользователя администратором"""
+
+    username = StringField('Имя пользователя', validators=[
+        DataRequired(),
+        Length(min=3, max=80, message='Имя должно быть от 3 до 80 символов'),
+    ])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    is_active = BooleanField('Учётная запись активна', default=True)
+    grant_admin = BooleanField('Права администратора', default=False)
+    new_password = PasswordField('Новый пароль (оставьте пустым, чтобы не менять)', validators=[
+        Optional(),
+        Length(min=8, message='Пароль не короче 8 символов'),
+    ])
+    confirm_password = PasswordField('Подтверждение нового пароля', validators=[
+        Optional(),
+        EqualTo('new_password', message='Пароли не совпадают'),
+    ])
+    submit = SubmitField('Сохранить')
+
+    def __init__(self, user_id=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._user_id = user_id
+
+    def validate_username(self, field):
+        q = User.query.filter(User.username == field.data)
+        if self._user_id is not None:
+            q = q.filter(User.id != self._user_id)
+        if q.first():
+            raise ValidationError('Это имя уже занято')
+
+    def validate_email(self, field):
+        q = User.query.filter(User.email == field.data)
+        if self._user_id is not None:
+            q = q.filter(User.id != self._user_id)
+        if q.first():
+            raise ValidationError('Этот email уже занят')
+
+
+class OneTimeLinkForm(FlaskForm):
+    """Отправка одноразовой ссылки на показ учётных данных."""
+    delivery_method = RadioField(
+        'Способ доставки',
+        choices=[('email', 'Email'), ('telegram', 'Telegram')],
+        validators=[DataRequired()],
+        default='email',
+    )
+    recipient_email = StringField('Email получателя', validators=[Optional(), Email()])
+    telegram_chat_id = StringField('Telegram chat_id', validators=[Optional(), Length(max=32)])
+    ott_return = HiddenField(default='ott', validators=[Optional()])
+    submit_ott = SubmitField('Отправить ссылку')
+
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators=extra_validators):
+            return False
+        if self.delivery_method.data == 'email':
+            if not (self.recipient_email.data or '').strip():
+                self.recipient_email.errors.append('Укажите email получателя')
+                return False
+        elif self.delivery_method.data == 'telegram':
+            tid = (self.telegram_chat_id.data or '').strip()
+            if not tid:
+                self.telegram_chat_id.errors.append('Укажите числовой chat_id получателя')
+                return False
+            if not tid.lstrip('-').isdigit():
+                self.telegram_chat_id.errors.append(
+                    'chat_id должен быть числом (узнайте у @userinfobot или через getUpdates)'
+                )
+                return False
+        return True
