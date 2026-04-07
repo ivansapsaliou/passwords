@@ -1,5 +1,7 @@
 import smtplib
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Optional
 
 import requests
 
@@ -16,14 +18,19 @@ from app.delivery_config import (
 )
 
 
-def send_email(to_addr: str, subject: str, body: str) -> None:
+def send_email(to_addr: str, subject: str, body: str, html_body: Optional[str] = None) -> None:
     """Отправка письма через SMTP. Настройки — эффективные (БД или env)."""
     server = get_effective_mail_server()
     sender = get_effective_mail_default_sender()
     if not server or not sender:
         raise RuntimeError('Почта не настроена (MAIL_SERVER, MAIL_DEFAULT_SENDER)')
 
-    msg = MIMEText(body, 'plain', 'utf-8')
+    if html_body:
+        msg = MIMEMultipart('alternative')
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    else:
+        msg = MIMEText(body, 'plain', 'utf-8')
     msg['Subject'] = subject
     msg['From'] = sender
     msg['To'] = to_addr

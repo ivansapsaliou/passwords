@@ -28,9 +28,27 @@
     </div>
     <div class="p-4 pt-0">
       <div style="border-top:1px solid var(--border);padding-top:1.25rem;">
-        <a href="{{ url_for('main.change_password') }}" class="btn btn-primary">
-          <i class="bi bi-shield-lock me-1"></i>Сменить пароль
-        </a>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <a href="{{ url_for('main.change_password') }}" class="btn btn-primary">
+            <i class="bi bi-shield-lock me-1"></i>Сменить пароль
+          </a>
+          {% if current_user.totp_enabled %}
+          <a href="{{ url_for('auth.totp_disable') }}" class="btn btn-outline-warning">
+            <i class="bi bi-shield-slash me-1"></i>Отключить 2FA
+          </a>
+          {% else %}
+          <a href="{{ url_for('auth.totp_setup') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-phone me-1"></i>Включить 2FA (TOTP)
+          </a>
+          {% endif %}
+        </div>
+        <p class="small text-muted mt-2 mb-0">
+          {% if current_user.totp_enabled %}
+          Двухфакторная аутентификация <strong>включена</strong>.
+          {% else %}
+          Рекомендуется включить 2FA для защиты аккаунта.
+          {% endif %}
+        </p>
       </div>
     </div>
   </div>

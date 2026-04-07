@@ -51,6 +51,25 @@
           {{ form.grant_admin(class="form-check-input") }}
           {{ form.grant_admin.label(class="form-check-label") }}
         </div>
+        <div class="mb-4 p-3 rounded border">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <div class="small text-muted">Статус 2FA</div>
+              {% if edit_user.totp_enabled %}
+                <span class="badge text-bg-success">включена</span>
+              {% else %}
+                <span class="badge text-bg-secondary">выключена</span>
+              {% endif %}
+            </div>
+            <form method="POST" action="{{ url_for('admin.admin_user_reissue_totp', user_id=edit_user.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-qr-code me-1"></i>Выдать новый QR
+              </button>
+            </form>
+          </div>
+          <div class="small text-muted mt-2">При перевыпуске старый секрет 2FA немедленно перестанет работать.</div>
+        </div>
 
         {{ form.submit(class="btn btn-primary btn-lg") }}
       </form>

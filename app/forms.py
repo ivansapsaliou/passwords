@@ -1,5 +1,7 @@
 import json
+from urllib.parse import urlparse
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import (
     StringField,
     PasswordField,
@@ -22,6 +24,45 @@ class LoginForm(FlaskForm):
     submit = SubmitField('Войти')
 
 
+class TotpLoginForm(FlaskForm):
+    """Второй шаг входа — код TOTP."""
+    code = StringField('Код аутентификатора', validators=[DataRequired(), Length(min=6, max=8)])
+    submit = SubmitField('Подтвердить')
+
+    def validate_code(self, field):
+        s = (field.data or '').replace(' ', '').strip()
+        if not s.isdigit():
+            raise ValidationError('Код должен содержать только цифры')
+        if len(s) != 6:
+            raise ValidationError('Введите 6-значный код')
+        field.data = s
+
+
+class TotpSetupForm(FlaskForm):
+    """Подтверждение привязки TOTP."""
+    code = StringField('Код из приложения', validators=[DataRequired(), Length(min=6, max=8)])
+    submit = SubmitField('Включить 2FA')
+
+    def validate_code(self, field):
+        s = (field.data or '').replace(' ', '').strip()
+        if not s.isdigit() or len(s) != 6:
+            raise ValidationError('Введите 6-значный код')
+        field.data = s
+
+
+class TotpDisableForm(FlaskForm):
+    """Отключение 2FA."""
+    password = PasswordField('Текущий пароль', validators=[DataRequired()])
+    code = StringField('Код из приложения-аутентификатора', validators=[DataRequired(), Length(min=6, max=8)])
+    submit = SubmitField('Отключить 2FA')
+
+    def validate_code(self, field):
+        s = (field.data or '').replace(' ', '').strip()
+        if not s.isdigit() or len(s) != 6:
+            raise ValidationError('Введите 6-значный код')
+        field.data = s
+
+
 class CredentialForm(FlaskForm):
     """Форма для добавления/редактирования учетных данных"""
     title = StringField('Название', validators=[DataRequired(), Length(min=1, max=120)])
@@ -37,11 +78,22 @@ class CredentialForm(FlaskForm):
     username = StringField('Имя пользователя', validators=[DataRequired()])
     password = PasswordField('Пароль', validators=[DataRequired()])
     url = StringField('URL/Адрес', validators=[Optional()])
-    port = IntegerField('Порт', validators=[Optional()])
+    port = IntegerField('Порт', validators=[Optional(), NumberRange(min=1, max=65535, message='Порт от 1 до 65535')])
     description = TextAreaField('Описание', validators=[Optional()])
     group_id = SelectField('Группа', coerce=int, validators=[Optional()])
     extra_data_json = TextAreaField('Дополнительные данные (JSON)', validators=[Optional()])
     submit = SubmitField('Сохранить')
+
+    def validate_url(self, field):
+        if not field.data or not str(field.data).strip():
+            return
+        raw = field.data.strip()
+        candidate = raw if '://' in raw else f'https://{raw}'
+        p = urlparse(candidate)
+        if p.scheme not in ('http', 'https'):
+            raise ValidationError('Разрешены только URL с протоколом http или https')
+        if not p.netloc:
+            raise ValidationError('Укажите корректный адрес (например https://example.com или example.com)')
 
     def validate_extra_data_json(self, field):
         if not field.data or not str(field.data).strip():
@@ -52,6 +104,32 @@ class CredentialForm(FlaskForm):
                 raise ValidationError('Ожидается JSON-объект, например {"ключ": "значение"}')
         except json.JSONDecodeError:
             raise ValidationError('Некорректный JSON')
+
+
+class RestoreForm(FlaskForm):
+    """Только CSRF для POST без полей."""
+    pass
+
+
+class ImportCsvForm(FlaskForm):
+    """Импорт учётных записей из CSV."""
+    format = SelectField(
+        'Формат экспорта',
+        choices=[
+            ('bitwarden', 'Bitwarden'),
+            ('chrome', 'Google Chrome'),
+            ('keepass', 'KeePass / универсальный'),
+        ],
+        validators=[DataRequired()],
+    )
+    file = FileField(
+        'Файл .csv',
+        validators=[
+            FileRequired(message='Выберите файл'),
+            FileAllowed(['csv'], message='Разрешены только файлы .csv'),
+        ],
+    )
+    submit = SubmitField('Импортировать')
 
 
 class GroupForm(FlaskForm):
@@ -133,14 +211,6 @@ class AdminCreateUserForm(FlaskForm):
         Length(min=3, max=80, message='Имя должно быть от 3 до 80 символов'),
     ])
     email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Пароль', validators=[
-        DataRequired(),
-        Length(min=8, message='Пароль должен быть не менее 8 символов'),
-    ])
-    confirm_password = PasswordField('Подтверждение пароля', validators=[
-        DataRequired(),
-        EqualTo('password', message='Пароли не совпадают'),
-    ])
     grant_admin = BooleanField('Права администратора', default=False)
     submit = SubmitField('Создать пользователя')
 
@@ -148,9 +218,19 @@ class AdminCreateUserForm(FlaskForm):
         if User.query.filter_by(username=field.data).first():
             raise ValidationError('Это имя уже занято')
 
-    def validate_email(self, field):
-        if User.query.filter_by(email=field.data).first():
-            raise ValidationError('Этот email уже зарегистрирован')
+
+
+class AccountOnboardingForm(FlaskForm):
+    """Первичная установка пароля через ссылку-приглашение."""
+    new_password = PasswordField('Новый пароль', validators=[
+        DataRequired(),
+        Length(min=8, message='Пароль должен быть не менее 8 символов'),
+    ])
+    confirm_password = PasswordField('Подтверждение пароля', validators=[
+        DataRequired(),
+        EqualTo('new_password', message='Пароли не совпадают'),
+    ])
+    submit = SubmitField('Сохранить пароль и продолжить')
 
 
 class AdminEditUserForm(FlaskForm):
@@ -183,14 +263,6 @@ class AdminEditUserForm(FlaskForm):
             q = q.filter(User.id != self._user_id)
         if q.first():
             raise ValidationError('Это имя уже занято')
-
-    def validate_email(self, field):
-        q = User.query.filter(User.email == field.data)
-        if self._user_id is not None:
-            q = q.filter(User.id != self._user_id)
-        if q.first():
-            raise ValidationError('Этот email уже занят')
-
 
 class OneTimeLinkForm(FlaskForm):
     """Отправка одноразовой ссылки на показ учётных данных."""

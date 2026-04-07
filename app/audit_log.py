@@ -24,6 +24,12 @@ ACTION_GROUP_CREATED = 'group_created'
 ACTION_GROUP_UPDATED = 'group_updated'
 ACTION_GROUP_DELETED = 'group_deleted'
 ACTION_PASSWORD_CHANGED = 'password_changed'
+ACTION_CREDENTIAL_FIELD_COPIED = 'credential_field_copied'
+ACTION_TOTP_ENABLED = 'totp_enabled'
+ACTION_TOTP_DISABLED = 'totp_disabled'
+ACTION_TOTP_REISSUED = 'totp_reissued'
+ACTION_CREDENTIALS_IMPORTED = 'credentials_imported'
+ACTION_CREDENTIALS_EXPORTED = 'credentials_exported'
 
 ACTION_LABELS = {
     ACTION_LOGIN: 'Вход в систему',
@@ -42,6 +48,12 @@ ACTION_LABELS = {
     ACTION_GROUP_UPDATED: 'Изменена группа',
     ACTION_GROUP_DELETED: 'Удалена группа',
     ACTION_PASSWORD_CHANGED: 'Смена своего пароля',
+    ACTION_CREDENTIAL_FIELD_COPIED: 'Скопировано поле записи',
+    ACTION_TOTP_ENABLED: 'Включена двухфакторная аутентификация',
+    ACTION_TOTP_DISABLED: 'Отключена двухфакторная аутентификация',
+    ACTION_TOTP_REISSUED: 'Администратор перевыпустил 2FA QR',
+    ACTION_CREDENTIALS_IMPORTED: 'Импорт учётных записей из CSV',
+    ACTION_CREDENTIALS_EXPORTED: 'Экспорт учётных записей в CSV',
 }
 
 ALL_ACTIONS = list(ACTION_LABELS.keys())

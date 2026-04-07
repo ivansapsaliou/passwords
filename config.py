@@ -10,6 +10,12 @@ class Config:
 
     # Сессия
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+    # Автовыход по бездействию (клиентский JS, минуты; 0 = отключить)
+    IDLE_TIMEOUT_MINUTES = int(os.environ.get('IDLE_TIMEOUT_MINUTES', '30'))
+
+    # Rate limiting (логин): хранилище memory:// или redis://...
+    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
+    LOGIN_RATE_LIMIT = os.environ.get('LOGIN_RATE_LIMIT', '10 per minute')
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'

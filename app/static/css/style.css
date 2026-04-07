@@ -565,6 +565,7 @@ code, pre, .font-mono, .font-monospace {
 
 .card-form-header h4 i { color: var(--amber-400); }
 .card-form-header small { color: rgba(255,255,255,0.5); font-family: var(--font-mono); font-size: 0.75rem; }
+[data-bs-theme="light"] .card-form-header small { color: rgba(255,255,255,0.82); }
 
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn {
@@ -626,7 +627,7 @@ code, pre, .font-mono, .font-monospace {
 
 .btn-outline-secondary:hover {
   background: var(--surface-2) !important;
-  border-color: rgba(255,255,255,0.12) !important;
+  border-color: var(--border) !important;
   color: var(--text) !important;
 }
 
@@ -912,6 +913,24 @@ code, pre, .font-mono, .font-monospace {
   z-index: 1;
 }
 
+.auth-brand-features {
+  border-top: 1px solid var(--border);
+}
+
+.auth-brand-feature-item {
+  color: rgba(255,255,255,0.58);
+  font-size: 0.83rem;
+}
+
+.auth-brand-feature-icon {
+  color: rgba(245,158,11,0.65);
+  width: 1rem;
+}
+
+[data-bs-theme="light"] .auth-brand-feature-item {
+  color: rgba(255,255,255,0.88);
+}
+
 .auth-card {
   background: var(--surface);
   border: 1px solid var(--border) !important;
@@ -1151,7 +1170,7 @@ code, pre, .font-mono, .font-monospace {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--obsidian-300); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 
 /* ── Animations ─────────────────────────────────────────── */
 @keyframes fadeInUp {

@@ -51,19 +51,21 @@
         <i class="bi bi-chevron-right sv-nav-arrow ms-1"></i>
       </button>
       <div class="collapse" id="sbGroups">
-        <ul class="sv-subnav">
-          {% set groups = current_user.groups.order_by('name').all() %}
-          {% if groups %}
+        {% set groups = current_user.groups.order_by('position', 'name').all() %}
+        {% if groups %}
+        <ul class="sv-subnav mb-0" id="sv-group-sort">
             {% for g in groups %}
-              <li>
-                <a class="sv-subnav-link" href="{{ url_for('credential_bp.list_credentials', group_id=g.id) }}">
-                  {# Color dot #}
+              <li data-group-id="{{ g.id }}">
+                <a class="sv-subnav-link d-flex align-items-center gap-1" href="{{ url_for('credential_bp.list_credentials', group_id=g.id) }}">
+                  <span class="sv-group-grip text-muted flex-shrink-0" style="cursor:grab;font-size:0.7rem;opacity:0.6;" title="Порядок">⋮⋮</span>
                   <span style="width:7px;height:7px;border-radius:50%;background:{{ g.color or '#f59e0b' }};flex-shrink:0;display:inline-block;"></span>
                   <span class="text-truncate">{{ g.name }}</span>
                   <span class="sv-nav-badge sv-nav-badge-0">{{ g.credentials.count() }}</span>
                 </a>
               </li>
             {% endfor %}
+        </ul>
+        <ul class="sv-subnav border-0 pt-0">
             <li>
               <a class="sv-subnav-link" href="{{ url_for('credential_bp.add_group') }}"
                  style="color: var(--accent); opacity: 0.8;">
@@ -71,7 +73,29 @@
                 <span>Новая группа</span>
               </a>
             </li>
-          {% else %}
+        </ul>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+        <script>
+        (function(){
+          const el = document.getElementById('sv-group-sort');
+          if (!el || typeof Sortable === 'undefined') return;
+          const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+          new Sortable(el, {
+            animation: 150,
+            handle: '.sv-group-grip',
+            onEnd: () => {
+              const ids = [...el.querySelectorAll('li[data-group-id]')].map((li) => li.getAttribute('data-group-id'));
+              fetch('/credentials/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf || '' },
+                body: JSON.stringify({ kind: 'groups', ids: ids.map(Number) }),
+              });
+            }
+          });
+        })();
+        </script>
+        {% else %}
+        <ul class="sv-subnav">
             <li>
               <a class="sv-subnav-link" href="{{ url_for('credential_bp.add_group') }}"
                  style="color: var(--accent); opacity: 0.8;">
@@ -79,8 +103,8 @@
                 <span>Создать группу</span>
               </a>
             </li>
-          {% endif %}
         </ul>
+        {% endif %}
       </div>
     </li>
 

@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% if current_user.is_authenticated %}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% endif %}
   <title>{% block title %}Менеджер учётных данных{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,10 +15,16 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
   {% block extra_css %}{% endblock %}
+  {% if current_user.is_authenticated and idle_timeout_minutes and idle_timeout_minutes > 0 %}
+  <script>
+    window.__SV_IDLE = { minutes: {{ idle_timeout_minutes|int }}, logoutUrl: {{ url_for('auth.logout')|tojson }} };
+  </script>
+  {% endif %}
 </head>
 <body class="app-body">
+  {% set show_authenticated_shell = current_user.is_authenticated and not (hide_app_shell or false) %}
 
-  {% if current_user.is_authenticated %}
+  {% if show_authenticated_shell %}
   <button class="btn btn-sm btn-ghost d-lg-none app-floating-nav app-floating-nav--start"
           type="button" data-bs-toggle="offcanvas"
           data-bs-target="#appSidebarMenu"
@@ -25,7 +34,7 @@
   </button>
   {% endif %}
 
-  {% if not current_user.is_authenticated %}
+  {% if not show_authenticated_shell %}
   <div class="app-floating-nav app-floating-nav--end d-flex align-items-center flex-wrap gap-1">
     <button type="button" class="btn btn-sm btn-ghost theme-toggle" title="Сменить тему">
       <i class="bi bi-moon-stars-fill theme-icon-dark"></i>
@@ -33,6 +42,29 @@
     </button>
     <a class="btn btn-sm btn-ghost" href="{{ url_for('auth.login') }}">Вход</a>
   </div>
+  {% endif %}
+
+  {% if show_authenticated_shell %}
+  <div class="modal fade" id="svQuickSearchModal" tabindex="-1" aria-labelledby="svQuickSearchLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-secondary" style="background:var(--bs-body-bg);">
+        <div class="modal-header border-secondary py-2 px-3">
+          <label id="svQuickSearchLabel" class="visually-hidden">Поиск</label>
+          <input type="search" class="form-control border-0 bg-transparent shadow-none" id="svQuickSearchInput"
+                 placeholder="Поиск по названию и описанию…" autocomplete="off">
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+        </div>
+        <div class="modal-body p-0 border-top border-secondary" id="svQuickSearchResults" style="max-height:min(50vh,320px);overflow-y:auto;"></div>
+        <div class="modal-footer border-secondary py-2 px-3 small text-muted">
+          <span><kbd class="px-1">Ctrl</kbd>/<kbd class="px-1">⌘</kbd> + <kbd class="px-1">K</kbd> — быстрый поиск</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.__SV_API_SEARCH = {{ url_for('main.api_search_credentials')|tojson }};
+    window.__SV_CRED_VIEW_BASE = {{ url_for('credential_bp.view_credential', credential_id=0)|tojson }};
+  </script>
   {% endif %}
 
   <!-- ── Toasts / flash (fixed bottom-right, не сдвигают вёрстку) ── -->
@@ -50,9 +82,9 @@
   </div>
 
   <!-- ── Main layout ─────────────────────────────────── -->
-  <div class="d-flex flex-grow-1 {% if current_user.is_authenticated %}align-items-stretch{% endif %}">
+  <div class="d-flex flex-grow-1 {% if show_authenticated_shell %}align-items-stretch{% endif %}">
 
-    {% if current_user.is_authenticated %}
+    {% if show_authenticated_shell %}
     <!-- Sidebar (desktop: always visible; mobile: offcanvas) -->
     <div class="d-none d-lg-flex flex-column flex-shrink-0" style="width:220px;">
       <aside class="app-sidebar-panel h-100" aria-label="Боковая навигация">
@@ -81,7 +113,7 @@
     {% endif %}
 
     <!-- Content -->
-    <main class="flex-grow-1 min-w-0 pb-5 app-main px-3 px-lg-4{% if current_user.is_authenticated %} app-main--with-floating-nav{% endif %}">
+    <main class="flex-grow-1 min-w-0 pb-5 app-main px-3 px-lg-4{% if show_authenticated_shell %} app-main--with-floating-nav{% endif %}">
       {% block content %}{% endblock %}
     </main>
 

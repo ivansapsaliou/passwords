@@ -9,12 +9,14 @@ class User(UserMixin, db.Model):
     """Модель пользователя"""
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    totp_secret_encrypted = db.Column(db.Text)  # base32, Fernet
 
     credentials = db.relationship('Credential', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
     groups = db.relationship('CredentialGroup', backref='creator', lazy='dynamic', cascade='all, delete-orphan')
@@ -33,6 +35,22 @@ class User(UserMixin, db.Model):
         """Проверяет пароль"""
         return check_password_hash(self.password_hash, password)
 
+    def set_totp_secret(self, raw_base32: str):
+        """Сохраняет секрет TOTP (base32)."""
+        mgr = EncryptionManager()
+        self.totp_secret_encrypted = mgr.encrypt(raw_base32.strip().replace(' ', ''))
+
+    def get_totp_secret_plain(self):
+        """Расшифровка секрета TOTP для проверки кода."""
+        if not self.totp_secret_encrypted:
+            return None
+        mgr = EncryptionManager()
+        return mgr.decrypt(self.totp_secret_encrypted)
+
+    def clear_totp(self):
+        self.totp_enabled = False
+        self.totp_secret_encrypted = None
+
     def __repr__(self):
         return f'<User {self.username}>'
 
@@ -45,6 +63,7 @@ class CredentialGroup(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     color = db.Column(db.String(7), default='#3b82f6')
+    position = db.Column(db.Integer, default=0, nullable=False)
 
     credentials = db.relationship('Credential', backref='group', lazy='dynamic', cascade='all, delete-orphan')
 
@@ -68,6 +87,7 @@ class Credential(db.Model):
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     group_id = db.Column(db.Integer, db.ForeignKey('credential_group.id'))
+    position = db.Column(db.Integer, default=0, nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -123,6 +143,21 @@ class Credential(db.Model):
 
     def __repr__(self):
         return f'<Credential {self.title}>'
+
+
+class CredentialHistory(db.Model):
+    """Снимок учётной записи перед изменением (для восстановления)."""
+
+    __tablename__ = 'credential_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    credential_id = db.Column(db.Integer, db.ForeignKey('credential.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    snapshot_encrypted = db.Column(db.Text, nullable=False)
+
+    credential = db.relationship('Credential', backref=db.backref('history_versions', lazy='dynamic'))
+    created_by = db.relationship('User', foreign_keys=[created_by_user_id])
 
 
 class CredentialShare(db.Model):

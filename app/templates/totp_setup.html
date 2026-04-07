@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Включить 2FA{% endblock %}
+
+{% block content %}
+<div class="py-4 page-narrow animate-fadein">
+  <div class="card-vault">
+    <div class="card-vault-header">
+      <span class="card-vault-title">
+        <i class="bi bi-shield-lock title-icon"></i>
+        Включить двухфакторную аутентификацию (TOTP)
+      </span>
+    </div>
+    <div class="p-4">
+      <p class="text-muted mb-4">Отсканируйте QR-код в приложении (Google Authenticator, Aegis, Bitwarden и т.д.) или введите секрет вручную.</p>
+
+      <div class="text-center mb-4 p-3 rounded" style="background:var(--bs-body-bg);">
+        <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR" width="200" height="200" class="img-fluid">
+      </div>
+
+      <p class="small font-monospace text-break mb-4">{{ secret_manual }}</p>
+
+      <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+          {{ form.code.label(class="form-label") }}
+          {% if form.code.errors %}
+            {{ form.code(class="form-control is-invalid", autocomplete="one-time-code", inputmode="numeric") }}
+            <div class="invalid-feedback d-block">{% for e in form.code.errors %}{{ e }}{% endfor %}</div>
+          {% else %}
+            {{ form.code(class="form-control", placeholder="000000", autocomplete="one-time-code", inputmode="numeric") }}
+          {% endif %}
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          {{ form.submit(class="btn btn-primary") }}
+          <a href="{{ url_for('main.profile') }}" class="btn btn-outline-secondary">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

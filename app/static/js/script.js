@@ -122,10 +122,25 @@ function copyTextToClipboard(text) {
 }
 
 /* ── Copy username ──────────────────────────────────────── */
+function copyFieldUrl(id) {
+  const cfg = document.getElementById('sv-credentials-config');
+  if (!cfg?.dataset.copyFieldBase) return null;
+  return cfg.dataset.copyFieldBase.replace(/\/0\/copy-field(\?.*)?$/, `/${id}/copy-field$1`);
+}
+
+function svCsrfHeaders() {
+  const t = document.querySelector('meta[name="csrf-token"]')?.content;
+  const h = { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' };
+  if (t) h['X-CSRFToken'] = t;
+  return h;
+}
+
 function copyUsernameAction(credentialId, buttonEl) {
-  fetch(`/credentials/${credentialId}/copy-username`, {
+  const url = copyFieldUrl(credentialId) || `/credentials/${credentialId}/copy-field`;
+  fetch(url, {
     method: 'POST',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    headers: svCsrfHeaders(),
+    body: JSON.stringify({ field: 'username' }),
   })
     .then(r => {
       if (!r.ok) throw new Error('bad status');
@@ -157,20 +172,17 @@ document.querySelectorAll('.copy-username-btn').forEach(btn => {
 });
 
 /* ── Copy password ──────────────────────────────────────── */
-function copyPasswordUrl(id) {
-  const cfg = document.getElementById('sv-credentials-config');
-  if (!cfg?.dataset.copyPasswordBase) return null;
-  return cfg.dataset.copyPasswordBase.replace(/\/0\/copy-password(\?.*)?$/, `/${id}/copy-password$1`);
-}
-
 document.querySelectorAll('.copy-password').forEach(btn => {
   btn.addEventListener('click', function () {
     const id = this.dataset.credentialId;
     const buttonEl = this;
     if (!id) return;
-    const url = copyPasswordUrl(id);
-    if (!url) return;
-    fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    const url = copyFieldUrl(id) || `/credentials/${id}/copy-field`;
+    fetch(url, {
+      method: 'POST',
+      headers: svCsrfHeaders(),
+      body: JSON.stringify({ field: 'password' }),
+    })
       .then(r => {
         if (!r.ok) throw new Error('bad status');
         return r.json();
@@ -288,8 +300,97 @@ function initServerFlashAutoDismiss() {
   });
 }
 
+/* ── Быстрый поиск Cmd+K (конфиг window.__SV_API_SEARCH в base.html) ── */
+function initQuickSearch() {
+  const modalEl = document.getElementById('svQuickSearchModal');
+  if (!modalEl || !window.__SV_API_SEARCH) return;
+  const input = document.getElementById('svQuickSearchInput');
+  const results = document.getElementById('svQuickSearchResults');
+  if (!input || !results) return;
+  const modal = new bootstrap.Modal(modalEl);
+  let debounce;
+
+  function viewUrl(id) {
+    const base = window.__SV_CRED_VIEW_BASE || '';
+    return base.replace(/\/0\/view(\?.*)?$/, `/${id}/view$1`);
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
+  }
+
+  function render(items) {
+    if (!items.length) {
+      results.innerHTML = '<div class="p-3 text-muted small">Ничего не найдено</div>';
+      return;
+    }
+    results.innerHTML = items.map((x) => `
+      <a href="${viewUrl(x.id)}" class="list-group-item list-group-item-action border-0 border-bottom rounded-0 py-2 px-3 small text-decoration-none text-body">
+        <div class="fw-semibold">${escapeHtml(x.title)}</div>
+        <div class="text-muted text-truncate small">${x.group_name ? escapeHtml(x.group_name) + ' · ' : ''}${escapeHtml(x.url || '—')}</div>
+      </a>`).join('');
+  }
+
+  function runFetch(q) {
+    const url = new URL(window.__SV_API_SEARCH, window.location.origin);
+    url.searchParams.set('q', q);
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then((r) => r.json())
+      .then((d) => render(d.results || []))
+      .catch(() => {
+        results.innerHTML = '<div class="p-3 text-danger small">Ошибка запроса</div>';
+      });
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounce);
+    const q = input.value.trim();
+    if (q.length < 2) {
+      results.innerHTML = '<div class="p-3 text-muted small">Введите минимум 2 символа</div>';
+      return;
+    }
+    debounce = setTimeout(() => runFetch(q), 200);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      modal.show();
+      setTimeout(() => input.focus(), 150);
+    }
+  });
+
+  modalEl.addEventListener('shown.bs.modal', () => {
+    input.value = '';
+    results.innerHTML = '<div class="p-3 text-muted small">Введите минимум 2 символа</div>';
+    input.focus();
+  });
+}
+
+/* ── Idle session timeout (только для авторизованных; конфиг в base.html) ── */
+function initIdleLogout() {
+  const cfg = window.__SV_IDLE;
+  if (!cfg || !cfg.minutes || !cfg.logoutUrl) return;
+  const ms = cfg.minutes * 60 * 1000;
+  let timer;
+  const reset = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      window.location.href = cfg.logoutUrl;
+    }, ms);
+  };
+  ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach((ev) => {
+    document.addEventListener(ev, reset, { passive: true });
+  });
+  reset();
+}
+
 /* ── DOM ready ──────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
+  initQuickSearch();
+  initIdleLogout();
   initServerFlashAutoDismiss();
   initSvShareUserPickers();
 

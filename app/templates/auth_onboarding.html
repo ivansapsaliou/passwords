@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Первый вход{% endblock %}
+
+{% block content %}
+<div class="auth-shell">
+  <div class="container">
+    <div class="row g-4 justify-content-center align-items-stretch">
+      <div class="col-lg-6 animate-fadein">
+        <div class="card-vault h-100">
+          <div class="card-vault-header">
+            <div class="card-vault-title"><i class="bi bi-qr-code title-icon"></i>Подключение 2FA</div>
+          </div>
+          <div class="p-4">
+            <p class="text-muted mb-3">Пользователь: <span class="font-monospace">{{ onboarding_user.username }}</span></p>
+            <p class="small mb-3">1) Откройте Google Authenticator / Microsoft Authenticator.</p>
+            <p class="small mb-3">2) Отсканируйте QR-код ниже.</p>
+            <p class="small mb-3">3) Используйте 6-значный код при входе.</p>
+            <div class="text-center my-3">
+              <img src="data:image/png;base64,{{ qr_b64 }}" alt="TOTP QR" class="img-fluid rounded border p-2 bg-white">
+            </div>
+            <details class="small">
+              <summary class="text-muted">Ручной ввод секрета</summary>
+              <div class="mt-2 font-monospace">{{ secret_manual }}</div>
+              <div class="mt-1 text-muted">{{ otpauth_uri }}</div>
+            </details>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5 animate-fadein-1">
+        <div class="card-form h-100">
+          <div class="card-form-header">
+            <h4><i class="bi bi-key"></i>Установите пароль</h4>
+            <small>Без этого вход будет недоступен</small>
+          </div>
+          <div class="p-4">
+            <form method="POST" novalidate>
+              {{ form.hidden_tag() }}
+              <div class="mb-3">
+                {{ form.new_password.label(class="form-label") }}
+                {{ form.new_password(class="form-control", autocomplete="new-password") }}
+                {% if form.new_password.errors %}<div class="invalid-feedback d-block">{{ form.new_password.errors[0] }}</div>{% endif %}
+              </div>
+              <div class="mb-4">
+                {{ form.confirm_password.label(class="form-label") }}
+                {{ form.confirm_password(class="form-control", autocomplete="new-password") }}
+                {% if form.confirm_password.errors %}<div class="invalid-feedback d-block">{{ form.confirm_password.errors[0] }}</div>{% endif %}
+              </div>
+              <div class="d-grid">
+                {{ form.submit(class="btn btn-primary btn-lg") }}
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

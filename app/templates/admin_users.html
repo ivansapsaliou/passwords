@@ -21,6 +21,7 @@
             <th>Имя</th>
             <th>Email</th>
             <th>Админ</th>
+            <th>2FA</th>
             <th>Активен</th>
             <th>Создан</th>
             <th></th>
@@ -32,6 +33,7 @@
               <td class="fw-medium">{{ u.username }}</td>
               <td class="font-monospace small">{{ u.email }}</td>
               <td>{% if u.is_admin %}<span class="badge text-bg-primary">да</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td>{% if u.totp_enabled %}<span class="badge text-bg-success small">вкл</span>{% else %}<span class="badge text-bg-secondary small">выкл</span>{% endif %}</td>
               <td>{% if u.is_active %}<span class="badge text-bg-success small">да</span>{% else %}<span class="badge text-bg-secondary small">нет</span>{% endif %}</td>
               <td class="text-muted small">{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</td>
               <td class="text-end">

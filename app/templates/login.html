@@ -13,11 +13,11 @@
           <h2 class="auth-brand-title">SecureVault</h2>
           <p class="auth-brand-desc">Храните пароли в зашифрованном виде и управляйте доступом из одного места.</p>
 
-          <div class="mt-4 pt-2" style="border-top:1px solid rgba(255,255,255,0.06);">
+          <div class="mt-4 pt-2 auth-brand-features">
             <div class="d-flex flex-column gap-2">
               {% for feature in [('bi-lock-fill', 'Шифрование Fernet'), ('bi-folder2-open', 'Группировка записей'), ('bi-moon-stars-fill', 'Тёмная тема')] %}
-              <div class="d-flex align-items-center gap-2" style="color:rgba(255,255,255,0.45);font-size:0.83rem;">
-                <i class="bi {{ feature[0] }}" style="color:rgba(245,158,11,0.6);width:1rem;"></i>
+              <div class="d-flex align-items-center gap-2 auth-brand-feature-item">
+                <i class="bi {{ feature[0] }} auth-brand-feature-icon"></i>
                 <span>{{ feature[1] }}</span>
               </div>
               {% endfor %}

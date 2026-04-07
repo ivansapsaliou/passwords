@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<body style="margin:0;padding:0;background:#f7f8fb;font-family:Arial,sans-serif;color:#111827;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:#111827;color:#fbbf24;padding:20px 24px;font-size:22px;font-weight:700;">
+              SecureVault
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <p style="margin:0 0 12px 0;font-size:16px;">Здравствуйте, <b>{{ username }}</b>!</p>
+              <p style="margin:0 0 16px 0;color:#374151;">Для вас создан доступ в SecureVault. Чтобы войти в систему, выполните шаги ниже.</p>
+              <ol style="margin:0 0 18px 20px;padding:0;color:#111827;">
+                <li style="margin-bottom:8px;">Откройте ссылку onboarding.</li>
+                <li style="margin-bottom:8px;">Установите личный пароль.</li>
+                <li style="margin-bottom:8px;">Отсканируйте QR-код в приложении-аутентификаторе.</li>
+                <li>Войдите по логину и паролю, затем введите 6-значный код 2FA.</li>
+              </ol>
+              <p style="margin:0 0 20px 0;">
+                <a href="{{ onboarding_link }}" style="display:inline-block;background:#d97706;color:#ffffff;text-decoration:none;padding:12px 16px;border-radius:8px;font-weight:600;">Открыть onboarding</a>
+              </p>
+              <p style="margin:0 0 8px 0;color:#4b5563;font-size:13px;">Если кнопка не работает, скопируйте ссылку:</p>
+              <p style="margin:0 0 16px 0;font-size:13px;word-break:break-all;color:#1f2937;">{{ onboarding_link }}</p>
+              <div style="padding:12px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;color:#92400e;font-size:13px;">
+                Никому не передавайте эту ссылку и коды из приложения-аутентификатора.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

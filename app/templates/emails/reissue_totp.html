@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<body style="margin:0;padding:0;background:#f7f8fb;font-family:Arial,sans-serif;color:#111827;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:#7c2d12;color:#fed7aa;padding:20px 24px;font-size:22px;font-weight:700;">
+              SecureVault: перевыпуск 2FA
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <p style="margin:0 0 12px 0;font-size:16px;">Здравствуйте, <b>{{ username }}</b>!</p>
+              <p style="margin:0 0 16px 0;color:#374151;">Администратор перевыпустил ваш QR-код 2FA. Старый секрет уже инвалидирован.</p>
+              <ol style="margin:0 0 18px 20px;padding:0;color:#111827;">
+                <li style="margin-bottom:8px;">Откройте onboarding-ссылку.</li>
+                <li style="margin-bottom:8px;">Проверьте/обновите пароль.</li>
+                <li style="margin-bottom:8px;">Пересканируйте QR-код в Authenticator.</li>
+                <li>Войдите в систему и введите новый 6-значный код.</li>
+              </ol>
+              <p style="margin:0 0 20px 0;">
+                <a href="{{ onboarding_link }}" style="display:inline-block;background:#b45309;color:#ffffff;text-decoration:none;padding:12px 16px;border-radius:8px;font-weight:600;">Открыть onboarding</a>
+              </p>
+              <p style="margin:0 0 8px 0;color:#4b5563;font-size:13px;">Если кнопка не работает, скопируйте ссылку:</p>
+              <p style="margin:0 0 16px 0;font-size:13px;word-break:break-all;color:#1f2937;">{{ onboarding_link }}</p>
+              <div style="padding:12px;border:1px solid #fecaca;background:#fef2f2;border-radius:8px;color:#991b1b;font-size:13px;">
+                Если вы не запрашивали это действие, немедленно обратитесь к администратору.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -8,7 +8,7 @@
       <i class="bi bi-arrow-left me-1"></i>К списку
     </a>
     <h1 class="page-title mb-1"><i class="bi bi-person-plus me-2"></i>Создать пользователя</h1>
-    <p class="text-muted small mb-0">Пароль передайте пользователю отдельным безопасным каналом.</p>
+    <p class="text-muted small mb-0">Пользователь получит письмо с безопасной ссылкой для установки пароля и подключения 2FA.</p>
   </div>
 
   <div class="card-form">
@@ -33,16 +33,6 @@
           {% else %}
             {{ form.email(class="form-control") }}
           {% endif %}
-        </div>
-        <div class="mb-3">
-          {{ form.password.label(class="form-label") }}
-          {{ form.password(class="form-control") }}
-          {% if form.password.errors %}<div class="invalid-feedback d-block">{{ form.password.errors[0] }}</div>{% endif %}
-        </div>
-        <div class="mb-4">
-          {{ form.confirm_password.label(class="form-label") }}
-          {{ form.confirm_password(class="form-control") }}
-          {% if form.confirm_password.errors %}<div class="invalid-feedback d-block">{{ form.confirm_password.errors[0] }}</div>{% endif %}
         </div>
         <div class="form-check mb-4">
           {{ form.grant_admin(class="form-check-input") }}

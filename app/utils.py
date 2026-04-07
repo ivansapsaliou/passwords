@@ -4,6 +4,8 @@ import os
 
 from cryptography.fernet import Fernet
 
+V1_PREFIX = "v1:"
+
 
 def _derive_fernet_key_from_secret(secret: str) -> bytes:
     """Стабильный URL-safe ключ Fernet (32 байта) из секрета приложения."""
@@ -39,9 +41,15 @@ class EncryptionManager:
     def encrypt(self, data):
         if isinstance(data, str):
             data = data.encode()
-        return self.cipher.encrypt(data).decode()
+        token = self.cipher.encrypt(data).decode()
+        return V1_PREFIX + token
 
     def decrypt(self, encrypted_data):
+        if encrypted_data is None:
+            return ""
+        if isinstance(encrypted_data, str) and encrypted_data.startswith(V1_PREFIX):
+            payload = encrypted_data[len(V1_PREFIX) :].encode("ascii")
+            return self.cipher.decrypt(payload).decode()
         if isinstance(encrypted_data, str):
             encrypted_data = encrypted_data.encode("ascii")
         return self.cipher.decrypt(encrypted_data).decode()
