@@ -50,7 +50,8 @@ def create_app(config_name=None):
             'style-src': "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
             'font-src': "'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:",
             'img-src': "'self' data: https: blob:",
-            'connect-src': "'self'",
+            # fetch/XHR к CDN (в т.ч. загрузка .map для source maps в DevTools)
+            'connect-src': "'self' https://cdn.jsdelivr.net",
         },
         frame_options='DENY',
         referrer_policy='strict-origin-when-cross-origin',

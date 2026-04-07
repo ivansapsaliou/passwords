@@ -30,6 +30,9 @@ ACTION_TOTP_DISABLED = 'totp_disabled'
 ACTION_TOTP_REISSUED = 'totp_reissued'
 ACTION_CREDENTIALS_IMPORTED = 'credentials_imported'
 ACTION_CREDENTIALS_EXPORTED = 'credentials_exported'
+ACTION_SERVER_CREATED = 'server_created'
+ACTION_SERVER_UPDATED = 'server_updated'
+ACTION_SERVER_DELETED = 'server_deleted'
 
 ACTION_LABELS = {
     ACTION_LOGIN: 'Вход в систему',
@@ -54,6 +57,9 @@ ACTION_LABELS = {
     ACTION_TOTP_REISSUED: 'Администратор перевыпустил 2FA QR',
     ACTION_CREDENTIALS_IMPORTED: 'Импорт учётных записей из CSV',
     ACTION_CREDENTIALS_EXPORTED: 'Экспорт учётных записей в CSV',
+    ACTION_SERVER_CREATED: 'Создан сервер',
+    ACTION_SERVER_UPDATED: 'Изменён сервер',
+    ACTION_SERVER_DELETED: 'Удалён сервер',
 }
 
 ALL_ACTIONS = list(ACTION_LABELS.keys())

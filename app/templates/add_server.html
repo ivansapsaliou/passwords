@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}{% if server %}Редактировать сервер{% else %}Новый сервер{% endif %}{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 animate-fadein">
+    <div class="d-flex align-items-center gap-3">
+      <div class="page-title-icon"><i class="bi bi-hdd-network-fill"></i></div>
+      <div>
+        <h1 class="page-title mb-0">{% if server %}Редактировать сервер{% else %}Новый сервер{% endif %}</h1>
+        <p class="text-muted mb-0 small mt-1">{% if server %}Имя, IP и учётные записи этого сервера{% else %}Имя и IP; ниже можно сразу добавить несколько учётных записей{% endif %}</p>
+      </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('credential_bp.list_servers') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>К списку серверов
+      </a>
+    </div>
+  </div>
+
+  {% include "partials/form_validation_errors.html" %}
+
+  <form method="POST" novalidate id="sv-add-server-form" action="{% if server %}{{ url_for('credential_bp.edit_server', server_id=server.id) }}{% endif %}">
+    {{ form.hidden_tag() }}
+
+    <div class="row g-4 align-items-stretch animate-fadein-1">
+      <div class="col-lg-10 mx-auto">
+        <div class="card-vault flex-grow-1">
+          <div class="card-vault-header">
+            <div class="card-vault-title">
+              <span class="title-icon"><i class="bi bi-hdd-network"></i></span>
+              Сервер
+            </div>
+          </div>
+          <div class="p-4 p-lg-4">
+            <div class="row g-3 mb-0">
+              <div class="col-md-6">
+                {{ form.name.label(class="form-label") }}
+                {% if form.name.errors %}
+                  {{ form.name(class="form-control is-invalid") }}
+                  <div class="invalid-feedback d-block">{% for e in form.name.errors %}{{ e }}{% endfor %}</div>
+                {% else %}
+                  {{ form.name(class="form-control", placeholder="Например PROD-DB-01") }}
+                {% endif %}
+              </div>
+              <div class="col-md-6">
+                {{ form.ip_address.label(class="form-label") }}
+                {% if form.ip_address.errors %}
+                  {{ form.ip_address(class="form-control font-monospace is-invalid") }}
+                  <div class="invalid-feedback d-block">{% for e in form.ip_address.errors %}{{ e }}{% endfor %}</div>
+                {% else %}
+                  {{ form.ip_address(class="form-control font-monospace", placeholder="10.0.0.1") }}
+                {% endif %}
+              </div>
+              <div class="col-12">
+                {{ form.server_description.label(class="form-label") }}
+                {% if form.server_description.errors %}
+                  {{ form.server_description(class="form-control is-invalid", rows=3) }}
+                  <div class="invalid-feedback d-block">{% for e in form.server_description.errors %}{{ e }}{% endfor %}</div>
+                {% else %}
+                  {{ form.server_description(class="form-control", rows=3, placeholder="Например назначение сервера, ОС, заметки") }}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-vault mt-4">
+          <div class="card-vault-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="card-vault-title mb-0">
+              <span class="title-icon"><i class="bi bi-key-fill"></i></span>
+              Учётные записи (необязательно)
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="sv-add-cred-row" title="Добавить строку">
+              <i class="bi bi-plus-lg"></i> Строка
+            </button>
+          </div>
+          <div class="p-4 p-lg-4">
+            <p class="text-muted small mb-3">
+              {% if server %}
+              Пустая строка с существующей записью удалит её. Для сохранения записи укажите название и логин; пароль можно оставить пустым, чтобы не менять.
+              {% else %}
+              Пустые строки не сохраняются. Для каждой непустой строки укажите название, логин и пароль; описание учётки необязательно.
+              {% endif %}
+            </p>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0" id="sv-cred-table">
+                <thead>
+                  <tr class="text-muted small">
+                    <th style="width:2.5rem;"></th>
+                    <th>Название</th>
+                    <th>Логин</th>
+                    <th>Пароль</th>
+                    <th>Описание учётки</th>
+                    <th>Тип</th>
+                    <th>Группа</th>
+                  </tr>
+                </thead>
+                <tbody id="sv-server-cred-rows">
+                  {% for row in form.credentials %}
+                  <tr class="sv-cred-row">
+                    <td class="text-center align-middle">
+                      {{ row.form.credential_id() }}
+                      <button type="button" class="btn btn-sm btn-outline-danger sv-remove-cred-row" title="Удалить строку">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </td>
+                    <td>
+                      {{ row.form.title(class="form-control form-control-sm") }}
+                      {% if row.form.title.errors %}
+                        <div class="invalid-feedback d-block small">{{ row.form.title.errors[0] }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ row.form.username(class="form-control form-control-sm") }}</td>
+                    <td>{{ row.form.password(class="form-control form-control-sm", autocomplete="new-password") }}</td>
+                    <td>{{ row.form.description(class="form-control form-control-sm", placeholder="Необязательно") }}</td>
+                    <td style="min-width: 9rem;">{{ row.form.service_type(class="form-select form-select-sm") }}</td>
+                    <td style="min-width: 9rem;">{{ row.form.group_id(class="form-select form-select-sm") }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-vault mt-4 animate-fadein-2">
+      <div class="p-4 p-lg-4">
+        <div class="d-flex flex-column flex-sm-row gap-3 align-items-stretch align-items-sm-center justify-content-between">
+          <p class="text-muted small mb-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Можно сохранить только сервер без учёток — тогда добавьте их позже из раздела «Учётные данные».
+          </p>
+          <div class="d-flex flex-wrap gap-2 justify-content-end">
+            <a href="{{ url_for('credential_bp.list_servers') }}" class="btn btn-outline-secondary">Отмена</a>
+            {% if server %}
+            {{ form.submit(class="btn btn-primary btn-lg", value="Сохранить изменения") }}
+            {% else %}
+            {{ form.submit(class="btn btn-primary btn-lg") }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const tbody = document.getElementById('sv-server-cred-rows');
+  const btn = document.getElementById('sv-add-cred-row');
+  if (!tbody || !btn) return;
+
+  tbody.addEventListener('click', (e) => {
+    const rm = e.target.closest('.sv-remove-cred-row');
+    if (!rm) return;
+    const tr = rm.closest('tr.sv-cred-row');
+    if (!tr || !tbody.contains(tr)) return;
+    tr.remove();
+  });
+
+  btn.addEventListener('click', () => {
+    const rows = tbody.querySelectorAll('tr.sv-cred-row');
+    if (!rows.length) return;
+    const next = rows.length;
+    const clone = rows[rows.length - 1].cloneNode(true);
+    clone.querySelectorAll('input, select, textarea').forEach((el) => {
+      if (el.name) {
+        el.name = el.name.replace(/credentials-\d+-/, 'credentials-' + next + '-');
+      }
+      if (el.id) {
+        el.id = el.id.replace(/credentials-\d+-/, 'credentials-' + next + '-');
+      }
+      if (el.name && el.name.indexOf('credential_id') !== -1) {
+        el.value = '0';
+      } else if (el.type === 'password' || el.type === 'text' || el.type === 'search') {
+        el.value = '';
+      } else if (el.type === 'hidden') {
+        el.value = '';
+      } else if (el.tagName === 'TEXTAREA') {
+        el.value = '';
+      } else if (el.tagName === 'SELECT') {
+        el.selectedIndex = 0;
+      }
+    });
+    tbody.appendChild(clone);
+  });
+});
+</script>
+{% endblock %}

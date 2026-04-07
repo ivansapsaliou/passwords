@@ -20,6 +20,7 @@ class User(UserMixin, db.Model):
 
     credentials = db.relationship('Credential', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
     groups = db.relationship('CredentialGroup', backref='creator', lazy='dynamic', cascade='all, delete-orphan')
+    servers = db.relationship('Server', back_populates='user', lazy='dynamic', cascade='all, delete-orphan')
     shares_received = db.relationship(
         'CredentialShare',
         foreign_keys='CredentialShare.shared_with_user_id',
@@ -71,6 +72,26 @@ class CredentialGroup(db.Model):
         return f'<CredentialGroup {self.name}>'
 
 
+class Server(db.Model):
+    """Сервер (хост): один IP заводится один раз, к нему привязываются учётки."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    ip_address = db.Column(db.String(45), nullable=False, index=True)
+    description = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', back_populates='servers')
+    credentials = db.relationship('Credential', backref='server', lazy='dynamic')
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'name', name='uq_server_user_name'),)
+
+    def __repr__(self):
+        return f'<Server {self.name} {self.ip_address}>'
+
+
 class Credential(db.Model):
     """Модель для хранения учетных данных"""
     id = db.Column(db.Integer, primary_key=True)
@@ -87,6 +108,7 @@ class Credential(db.Model):
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     group_id = db.Column(db.Integer, db.ForeignKey('credential_group.id'))
+    server_id = db.Column(db.Integer, db.ForeignKey('server.id'))
     position = db.Column(db.Integer, default=0, nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

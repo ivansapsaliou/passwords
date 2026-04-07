@@ -11,135 +11,137 @@
   'other': 'Другое'
 } %}
 {% set svc_type_keys = svc_labels.keys()|list %}
+{% set svc_bar_colors = {
+  'server': '#34d399',
+  'database': '#38bdf8',
+  'app': '#a78bfa',
+  'email': '#fb923c',
+  'cloud': '#7dd3fc',
+  'vpn': '#fb7185',
+  'other': 'rgba(148,163,184,0.55)'
+} %}
 
 {% block content %}
-<div class="py-4">
-
-  <!-- Header -->
-  <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-5 animate-fadein">
-    <div>
-      <p class="text-dim mb-1" style="font-family:var(--font-mono);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;">Добро пожаловать</p>
-      <h1 class="page-title mb-1">{{ current_user.username }}</h1>
-      <p class="text-muted mb-0" style="font-size:0.875rem;">Ваше зашифрованное хранилище учётных данных</p>
-    </div>
-    <a href="{{ url_for('credential_bp.add_credential') }}" class="btn btn-primary btn-lg d-flex align-items-center gap-2 flex-shrink-0">
-      <i class="bi bi-plus-lg"></i>
-      <span>Новая запись</span>
-    </a>
-  </div>
-
-  <!-- Stat cards -->
-  <div class="row g-3 mb-5">
-    <div class="col-sm-6 col-xl-3 animate-fadein-1">
-      <div class="stat-card stat-card--amber h-100">
-        <div class="stat-icon stat-icon--amber mb-3"><i class="bi bi-key-fill"></i></div>
-        <p class="stat-label">Учётные записи</p>
-        <p class="stat-value">{{ total_credentials }}</p>
+<div class="dash-page py-3 py-lg-4">
+  <section class="dash-hero card-vault animate-fadein" aria-labelledby="dash-heading">
+    <div class="dash-hero__main">
+      <div class="dash-hero__intro">
+        <p class="dash-hero__kicker">Панель управления</p>
+        <h1 class="dash-hero__title" id="dash-heading">Привет, {{ current_user.username }}</h1>
+        <p class="dash-hero__lead text-muted mb-0">Полный обзор хранилища, активности и структуры учётных записей.</p>
       </div>
-    </div>
-    <div class="col-sm-6 col-xl-3 animate-fadein-2">
-      <div class="stat-card stat-card--emerald h-100">
-        <div class="stat-icon stat-icon--emerald mb-3"><i class="bi bi-folder2-open"></i></div>
-        <p class="stat-label">Группы</p>
-        <p class="stat-value">{{ total_groups }}</p>
-      </div>
-    </div>
-    <div class="col-sm-6 col-xl-3 animate-fadein-3">
-      <div class="stat-card stat-card--sky h-100">
-        <div class="stat-icon stat-icon--sky mb-3"><i class="bi bi-clock-history"></i></div>
-        <p class="stat-label">Последний вход</p>
-        <p class="stat-value-sm mt-2">
-          {{ current_user.last_login.strftime('%d.%m.%Y %H:%M') if current_user.last_login else 'Первый визит' }}
-        </p>
-      </div>
-    </div>
-    <div class="col-sm-6 col-xl-3 animate-fadein-4">
-      <div class="stat-card stat-card--violet h-100">
-        <div class="stat-icon stat-icon--violet mb-3"><i class="bi bi-calendar3"></i></div>
-        <p class="stat-label">Аккаунт с</p>
-        <p class="stat-value-sm mt-2">{{ current_user.created_at.strftime('%d.%m.%Y') if current_user.created_at else '—' }}</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bottom row -->
-  <div class="row g-4">
-    <!-- Recent credentials -->
-    <div class="col-lg-7">
-      <div class="card-vault h-100 animate-fadein-2">
-        <div class="card-vault-header">
-          <span class="card-vault-title">
-            <i class="bi bi-clock-history title-icon"></i>
-            Недавно открытые
-          </span>
-          <a href="{{ url_for('credential_bp.list_credentials') }}" class="btn btn-sm btn-outline-secondary">
-            Все <i class="bi bi-arrow-right ms-1"></i>
-          </a>
-        </div>
-        <div>
-          {% if recent_credentials %}
-            <div class="list-group-vault">
-              {% for cred in recent_credentials %}
-                <a href="{{ url_for('credential_bp.edit_credential', credential_id=cred.id) if cred.user_id == current_user.id else url_for('credential_bp.view_credential', credential_id=cred.id) }}"
-                   class="list-group-item list-group-item-action">
-                  <div class="d-flex justify-content-between align-items-center gap-2">
-                    <div class="min-w-0">
-                      <p class="mb-1 fw-semibold text-truncate" style="font-size:0.9rem;">{{ cred.title }}</p>
-                      {% set st = cred.service_type if cred.service_type in svc_type_keys else 'other' %}
-                      <span class="badge badge-svc badge-svc-{{ st }}">{{ svc_labels.get(cred.service_type, cred.service_type) }}</span>
-                    </div>
-                    <i class="bi bi-chevron-right text-dim flex-shrink-0"></i>
-                  </div>
-                </a>
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="text-center py-5 text-muted">
-              <i class="bi bi-inbox d-block mb-2" style="font-size:2rem;opacity:0.3;"></i>
-              <p class="mb-1" style="font-size:0.875rem;">Нет записей</p>
-              <a href="{{ url_for('credential_bp.add_credential') }}" class="btn btn-sm btn-primary mt-2">Добавить первую</a>
-            </div>
-          {% endif %}
-        </div>
+      <div class="dash-hero__actions">
+        <a href="{{ url_for('credential_bp.add_credential') }}" class="btn btn-primary dash-hero__btn-primary"><i class="bi bi-plus-lg"></i> Добавить запись</a>
+        <a href="{{ url_for('credential_bp.list_credentials') }}" class="btn btn-outline-secondary dash-hero__btn-secondary"><i class="bi bi-key-fill"></i> Все записи</a>
+        <a href="{{ url_for('credential_bp.list_servers') }}" class="btn btn-outline-secondary dash-hero__btn-secondary"><i class="bi bi-hdd-network-fill"></i> Серверы</a>
       </div>
     </div>
 
-    <!-- Service types breakdown -->
-    <div class="col-lg-5">
-      <div class="card-vault h-100 animate-fadein-3">
-        <div class="card-vault-header">
-          <span class="card-vault-title">
-            <i class="bi bi-bar-chart-fill title-icon"></i>
-            По типам
-          </span>
-        </div>
-        <div class="p-3">
-          {% if service_types %}
-            {% set total = service_types.values()|sum %}
-            <div class="d-flex flex-column gap-2">
-              {% for stype, count in service_types.items() %}
-                {% set st = stype if stype in svc_type_keys else 'other' %}
-                {% set pct = (count / total * 100)|round|int %}
-                <div>
-                  <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="badge badge-svc badge-svc-{{ st }}">{{ svc_labels.get(stype, stype) }}</span>
-                    <span class="text-muted" style="font-family:var(--font-mono);font-size:0.75rem;">{{ count }}</span>
-                  </div>
-                  <div style="height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden;">
-                    <div style="height:100%;width:{{ pct }}%;background:var(--accent);border-radius:2px;transition:width 0.6s var(--ease-out);"></div>
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="text-center py-4 text-muted">
-              <p class="mb-0" style="font-size:0.875rem;">Нет данных</p>
-            </div>
-          {% endif %}
-        </div>
-      </div>
+    <div class="dash-metrics" role="list">
+      <div class="dash-metric" role="listitem"><span class="dash-metric__label">Записей</span><span class="dash-metric__value">{{ total_credentials }}</span></div>
+      <div class="dash-metric" role="listitem"><span class="dash-metric__label">Групп</span><span class="dash-metric__value">{{ total_groups }}</span></div>
+      <div class="dash-metric" role="listitem"><span class="dash-metric__label">Серверов</span><span class="dash-metric__value">{{ total_servers }}</span></div>
+      <div class="dash-metric" role="listitem"><span class="dash-metric__label">Без группы</span><span class="dash-metric__value">{{ ungrouped_credentials }}</span></div>
+      <div class="dash-metric" role="listitem"><span class="dash-metric__label">Привязано к серверам</span><span class="dash-metric__value">{{ with_server_credentials }}</span></div>
+      <div class="dash-metric" role="listitem"><span class="dash-metric__label">Не обновлялись 90+ дней</span><span class="dash-metric__value">{{ stale_credentials }}</span></div>
     </div>
-  </div>
+  </section>
 
+  <section class="dash-layout mt-4">
+    <article class="card-vault dash-panel animate-fadein-1">
+      <div class="card-vault-header">
+        <span class="card-vault-title"><i class="bi bi-clock-history title-icon"></i>Недавно открытые</span>
+      </div>
+      {% if recent_credentials %}
+        <ul class="dash-list list-unstyled mb-0">
+          {% for cred in recent_credentials %}
+            {% set st = cred.service_type if cred.service_type in svc_type_keys else 'other' %}
+            <li>
+              <a href="{{ url_for('credential_bp.edit_credential', credential_id=cred.id) if cred.user_id == current_user.id else url_for('credential_bp.view_credential', credential_id=cred.id) }}" class="dash-list__row">
+                <span class="dash-list__title text-truncate">{{ cred.title }}</span>
+                <span class="badge badge-svc badge-svc-{{ st }}">{{ svc_labels.get(cred.service_type, cred.service_type) }}</span>
+                <i class="bi bi-chevron-right dash-list__chev"></i>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="dash-empty"><p class="dash-empty__text mb-0">Записи пока не открывались.</p></div>
+      {% endif %}
+    </article>
+
+    <article class="card-vault dash-panel animate-fadein-2">
+      <div class="card-vault-header">
+        <span class="card-vault-title"><i class="bi bi-pencil-square title-icon"></i>Последние изменения</span>
+      </div>
+      {% if recent_updates %}
+        <ul class="dash-list list-unstyled mb-0">
+          {% for cred in recent_updates %}
+            {% set st = cred.service_type if cred.service_type in svc_type_keys else 'other' %}
+            <li>
+              <a href="{{ url_for('credential_bp.edit_credential', credential_id=cred.id) if cred.user_id == current_user.id else url_for('credential_bp.view_credential', credential_id=cred.id) }}" class="dash-list__row">
+                <span class="dash-list__title text-truncate">{{ cred.title }}</span>
+                <span class="badge badge-svc badge-svc-{{ st }}">{{ svc_labels.get(cred.service_type, cred.service_type) }}</span>
+                <span class="dash-list__meta text-dim">{{ cred.updated_at.strftime('%d.%m.%Y') if cred.updated_at else '—' }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="dash-empty"><p class="dash-empty__text mb-0">Нет недавних изменений.</p></div>
+      {% endif %}
+    </article>
+
+    <article class="card-vault dash-panel animate-fadein-3">
+      <div class="card-vault-header">
+        <span class="card-vault-title"><i class="bi bi-pie-chart-fill title-icon"></i>Типы записей</span>
+      </div>
+      <div class="dash-types__body">
+        {% if service_types %}
+          {% set total = service_types.values()|sum %}
+          <div class="dash-stacked" role="img" aria-label="Распределение типов записей">
+            {% for stype, count in service_types.items() %}
+              {% set st = stype if stype in svc_type_keys else 'other' %}
+              {% set pct = (count / total * 100) %}
+              <span class="dash-stacked__seg" style="width: {{ '%.4f'|format(pct) }}%; background: {{ svc_bar_colors.get(st, svc_bar_colors['other']) }};"></span>
+            {% endfor %}
+          </div>
+          <ul class="dash-types__legend list-unstyled mb-0">
+            {% for stype, count in service_types.items() %}
+              {% set st = stype if stype in svc_type_keys else 'other' %}
+              {% set pct = (count / total * 100)|round|int %}
+              <li class="dash-types__row">
+                <span class="dash-types__dot" style="background: {{ svc_bar_colors.get(st, svc_bar_colors['other']) }};"></span>
+                <span class="badge badge-svc badge-svc-{{ st }}">{{ svc_labels.get(stype, stype) }}</span>
+                <span class="dash-types__count">{{ count }}</span>
+                <span class="dash-types__pct text-dim">{{ pct }}%</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="dash-empty"><p class="dash-empty__text mb-0">Нет данных по типам.</p></div>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="card-vault dash-panel animate-fadein-4">
+      <div class="card-vault-header">
+        <span class="card-vault-title"><i class="bi bi-folder2-open title-icon"></i>Топ групп</span>
+      </div>
+      {% if top_groups %}
+        <ul class="dash-groups list-unstyled mb-0">
+          {% for group in top_groups %}
+            <li class="dash-groups__row">
+              <span class="dash-groups__dot" style="background: {{ group.color or '#f59e0b' }};"></span>
+              <span class="dash-groups__name text-truncate">{{ group.name }}</span>
+              <span class="dash-groups__count">{{ group.count }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="dash-empty"><p class="dash-empty__text mb-0">Пока нет заполненных групп.</p></div>
+      {% endif %}
+    </article>
+  </section>
 </div>
 {% endblock %}

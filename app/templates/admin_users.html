@@ -1,49 +1,164 @@
 {% extends "base.html" %}
 {% block title %}Пользователи{% endblock %}
 
+{% macro sort_link(label, key) -%}
+  {% set next_dir = 'desc' if sort_by == key and sort_dir == 'asc' else 'asc' %}
+  <a class="text-decoration-none text-reset js-async-nav"
+     href="{{ url_for('admin.admin_user_list', page=1, q=q, sort=key, dir=next_dir) }}">
+    {{ label }}
+    {% if sort_by == key %}
+      <i class="bi bi-caret-{{ 'up' if sort_dir == 'asc' else 'down' }}-fill ms-1"></i>
+    {% else %}
+      <i class="bi bi-arrow-down-up ms-1 text-muted"></i>
+    {% endif %}
+  </a>
+{%- endmacro %}
+
 {% block content %}
-<div class="py-4 animate-fadein">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
-    <div>
-      <h1 class="page-title mb-1"><i class="bi bi-people me-2"></i>Пользователи</h1>
-      <p class="text-muted small mb-0">Управление учётными записями SecureVault</p>
+<div class="py-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 animate-fadein">
+    <div class="d-flex align-items-center gap-3">
+      <div class="page-title-icon"><i class="bi bi-people-fill"></i></div>
+      <div>
+        <h1 class="page-title mb-0">Пользователи</h1>
+        <p class="text-muted mb-0 small mt-1">Управление учётными записями SecureVault</p>
+      </div>
     </div>
-    <a href="{{ url_for('admin.admin_user_create') }}" class="btn btn-primary">
-      <i class="bi bi-person-plus me-1"></i>Создать пользователя
-    </a>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.admin_user_create') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus me-1"></i>Создать пользователя
+      </a>
+    </div>
   </div>
 
-  <div class="card-vault">
+  <div class="row g-2 mb-4 animate-fadein-1">
+    <div class="col-md-8">
+      <form method="get" class="d-flex gap-2">
+        <input type="text" name="q" class="form-control" placeholder="Поиск: имя или email…" value="{{ q or '' }}">
+        <input type="hidden" name="sort" value="{{ sort_by }}">
+        <input type="hidden" name="dir" value="{{ sort_dir }}">
+        <button class="btn btn-outline-secondary" type="submit" title="Найти"><i class="bi bi-search"></i></button>
+        {% if q %}
+        <a href="{{ url_for('admin.admin_user_list', sort=sort_by, dir=sort_dir) }}" class="btn btn-outline-secondary" title="Сбросить"><i class="bi bi-x-lg"></i></a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <div id="sv-admin-users-page">
+  <div class="card-vault d-none d-md-block animate-fadein-2">
     <div class="table-responsive">
-      <table class="table table-borderless table-hover align-middle mb-0">
-        <thead class="text-muted small">
+      <table class="table-vault w-100">
+        <thead>
           <tr>
-            <th>Имя</th>
-            <th>Email</th>
+            <th>{{ sort_link('Имя', 'username') }}</th>
+            <th>{{ sort_link('Email', 'email') }}</th>
             <th>Админ</th>
             <th>2FA</th>
             <th>Активен</th>
-            <th>Создан</th>
-            <th></th>
+            <th>{{ sort_link('Создан', 'created_at') }}</th>
+            <th>{{ sort_link('Последний вход', 'last_login') }}</th>
+            <th class="text-end" style="padding-right:1.25rem;">Действия</th>
           </tr>
         </thead>
         <tbody>
-          {% for u in users %}
+          {% for u in users.items %}
             <tr>
-              <td class="fw-medium">{{ u.username }}</td>
-              <td class="font-monospace small">{{ u.email }}</td>
-              <td>{% if u.is_admin %}<span class="badge text-bg-primary">да</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
-              <td>{% if u.totp_enabled %}<span class="badge text-bg-success small">вкл</span>{% else %}<span class="badge text-bg-secondary small">выкл</span>{% endif %}</td>
-              <td>{% if u.is_active %}<span class="badge text-bg-success small">да</span>{% else %}<span class="badge text-bg-secondary small">нет</span>{% endif %}</td>
-              <td class="text-muted small">{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</td>
-              <td class="text-end">
-                <a href="{{ url_for('admin.admin_user_edit', user_id=u.id) }}" class="btn btn-sm btn-outline-secondary">Изменить</a>
+              <td style="padding-left:1rem;"><span class="fw-semibold" style="font-size:0.9rem;">{{ u.username }}</span></td>
+              <td class="text-muted" style="font-family:var(--font-mono);font-size:0.78rem;">{{ u.email }}</td>
+              <td>{% if u.is_admin %}<span class="badge badge-svc badge-svc-server">Да</span>{% else %}<span class="text-dim">—</span>{% endif %}</td>
+              <td>{% if u.totp_enabled %}<span class="badge badge-svc badge-svc-app">Включена</span>{% else %}<span class="badge badge-svc badge-svc-other">Выкл</span>{% endif %}</td>
+              <td>{% if u.is_active %}<span class="badge badge-svc badge-svc-server">Да</span>{% else %}<span class="badge badge-svc badge-svc-vpn">Нет</span>{% endif %}</td>
+              <td class="text-muted" style="font-family:var(--font-mono);font-size:0.78rem;white-space:nowrap;">{{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</td>
+              <td class="text-muted" style="font-family:var(--font-mono);font-size:0.78rem;white-space:nowrap;">{{ u.last_login.strftime('%d.%m.%Y %H:%M') if u.last_login else '—' }}</td>
+              <td class="text-end" style="padding-right:1rem;">
+                <a href="{{ url_for('admin.admin_user_edit', user_id=u.id) }}" class="btn btn-sm btn-outline-secondary btn-icon" title="Изменить">
+                  <i class="bi bi-pencil"></i>
+                </a>
               </td>
             </tr>
+          {% else %}
+            <tr><td colspan="8" class="text-center py-5 text-muted">Пользователи не найдены</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
+
+  <div class="d-md-none d-flex flex-column gap-3 animate-fadein-2">
+    {% for u in users.items %}
+    <div class="cred-card">
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+        <div>
+          <p class="fw-semibold mb-1" style="font-size:0.9rem;">{{ u.username }}</p>
+          <p class="text-muted mb-2" style="font-family:var(--font-mono);font-size:0.78rem;">{{ u.email }}</p>
+          {% if u.is_admin %}<span class="badge badge-svc badge-svc-server">Админ</span>{% endif %}
+          {% if u.totp_enabled %}<span class="badge badge-svc badge-svc-app ms-1">2FA</span>{% endif %}
+          {% if not u.is_active %}<span class="badge badge-svc badge-svc-vpn ms-1">Неактивен</span>{% endif %}
+        </div>
+      </div>
+      <p class="text-dim mb-2" style="font-family:var(--font-mono);font-size:0.72rem;">Создан: {{ u.created_at.strftime('%d.%m.%Y') if u.created_at else '—' }}</p>
+      <p class="text-dim mb-3" style="font-family:var(--font-mono);font-size:0.72rem;">Вход: {{ u.last_login.strftime('%d.%m.%Y %H:%M') if u.last_login else '—' }}</p>
+      <a href="{{ url_for('admin.admin_user_edit', user_id=u.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Изменить</a>
+    </div>
+    {% else %}
+      <p class="text-muted text-center py-4">Пользователи не найдены</p>
+    {% endfor %}
+  </div>
+
+  {% if users.pages > 1 %}
+    <nav class="mt-4" aria-label="Страницы пользователей">
+      <ul class="pagination justify-content-center flex-wrap mb-0 gap-1">
+        {% if users.has_prev %}
+          <li class="page-item"><a class="page-link js-async-nav" href="{{ url_for('admin.admin_user_list', page=users.prev_num, q=q or none, sort=sort_by, dir=sort_dir) }}"><i class="bi bi-chevron-left"></i></a></li>
+        {% endif %}
+        {% for page_num in users.iter_pages() %}
+          {% if page_num %}
+            <li class="page-item {% if page_num == users.page %}active{% endif %}">
+              {% if page_num == users.page %}
+                <span class="page-link">{{ page_num }}</span>
+              {% else %}
+                <a class="page-link js-async-nav" href="{{ url_for('admin.admin_user_list', page=page_num, q=q or none, sort=sort_by, dir=sort_dir) }}">{{ page_num }}</a>
+              {% endif %}
+            </li>
+          {% endif %}
+        {% endfor %}
+        {% if users.has_next %}
+          <li class="page-item"><a class="page-link js-async-nav" href="{{ url_for('admin.admin_user_list', page=users.next_num, q=q or none, sort=sort_by, dir=sort_dir) }}"><i class="bi bi-chevron-right"></i></a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const mountSelector = '#sv-admin-users-page';
+  async function navigate(url, push = true) {
+    try {
+      const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!res.ok) return window.location.href = url;
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const next = doc.querySelector(mountSelector);
+      const cur = document.querySelector(mountSelector);
+      if (!next || !cur) return window.location.href = url;
+      cur.innerHTML = next.innerHTML;
+      if (push) window.history.pushState({ url }, '', url);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } catch (_) { window.location.href = url; }
+  }
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a.js-async-nav');
+    if (!link) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate(link.href);
+  });
+  window.addEventListener('popstate', () => navigate(window.location.href, false));
+})();
+</script>
 {% endblock %}

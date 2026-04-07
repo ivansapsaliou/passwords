@@ -1,14 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Журнал действий{% endblock %}
 
+{% macro time_sort_link() -%}
+  {% set next_dir = 'asc' if sort_dir == 'desc' else 'desc' %}
+  <a class="text-decoration-none text-reset js-async-nav"
+     href="{{ url_for('admin.admin_audit_log', page=1, action=action_filter or none, q=q or none, dir=next_dir) }}">
+    Время (UTC)
+    <i class="bi bi-caret-{{ 'down' if sort_dir == 'desc' else 'up' }}-fill ms-1"></i>
+  </a>
+{%- endmacro %}
+
 {% block content %}
-<div class="py-4 animate-fadein">
-  <div class="mb-4">
-    <h1 class="page-title mb-1"><i class="bi bi-journal-text me-2"></i>Журнал действий</h1>
-    <p class="text-muted small mb-0">Кто что сделал: доступ к записям, одноразовые ссылки, уведомления, пользователи и настройки.</p>
+<div class="py-4">
+  <div class="d-flex align-items-center gap-3 mb-4 animate-fadein">
+    <div class="page-title-icon"><i class="bi bi-journal-text"></i></div>
+    <div>
+      <h1 class="page-title mb-0">Журнал действий</h1>
+      <p class="text-muted small mb-0 mt-1">Кто что сделал: доступ к записям, одноразовые ссылки, уведомления, пользователи и настройки.</p>
+    </div>
   </div>
 
-  <div class="card-vault mb-4">
+  <div class="card-vault mb-4 animate-fadein-1">
     <div class="p-3">
       <form method="get" class="row g-2 align-items-end">
         <div class="col-md-4">
@@ -24,6 +36,7 @@
           <label class="form-label small text-muted mb-1">Поиск в описании / JSON</label>
           <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="Фрагмент текста…">
         </div>
+        <input type="hidden" name="dir" value="{{ sort_dir }}">
         <div class="col-md-3 d-flex gap-2">
           <button type="submit" class="btn btn-primary flex-grow-1"><i class="bi bi-search me-1"></i>Фильтр</button>
           <a href="{{ url_for('admin.admin_audit_log') }}" class="btn btn-outline-secondary">Сброс</a>
@@ -32,40 +45,41 @@
     </div>
   </div>
 
-  <div class="card-vault">
+  <div id="sv-admin-audit-page">
+  <div class="card-vault d-none d-md-block animate-fadein-2">
     <div class="table-responsive">
-      <table class="table table-borderless table-hover align-middle mb-0" style="font-size:0.9rem;">
-        <thead class="text-muted small">
+      <table class="table-vault w-100">
+        <thead>
           <tr>
-            <th style="white-space:nowrap;">Время (UTC)</th>
+            <th style="white-space:nowrap;">{{ time_sort_link() }}</th>
             <th>Кто</th>
             <th>Тип</th>
             <th>Событие</th>
-            <th class="d-none d-lg-table-cell">IP</th>
-            <th class="d-none d-xl-table-cell">Детали</th>
+            <th>IP</th>
+            <th>Детали</th>
           </tr>
         </thead>
         <tbody>
           {% for entry in logs.items %}
             <tr>
-              <td class="text-muted small font-monospace">{{ entry.created_at.strftime('%d.%m.%Y %H:%M:%S') if entry.created_at else '—' }}</td>
+              <td class="text-muted" style="font-family:var(--font-mono);font-size:0.78rem;white-space:nowrap;">{{ entry.created_at.strftime('%d.%m.%Y %H:%M:%S') if entry.created_at else '—' }}</td>
               <td>
                 {% if entry.actor %}
-                  <span class="fw-medium">{{ entry.actor.username }}</span>
+                  <span class="fw-semibold">{{ entry.actor.username }}</span>
                 {% else %}
-                  <span class="text-muted">—</span>
+                  <span class="text-dim">—</span>
                 {% endif %}
               </td>
               <td>
-                <span class="badge text-bg-secondary text-wrap">{{ action_labels.get(entry.action, entry.action) }}</span>
+                <span class="badge badge-svc badge-svc-other text-wrap">{{ action_labels.get(entry.action, entry.action) }}</span>
               </td>
-              <td style="max-width:28rem;">{{ entry.summary }}</td>
-              <td class="d-none d-lg-table-cell small font-monospace text-muted">{{ entry.ip_address or '—' }}</td>
-              <td class="d-none d-xl-table-cell small">
+              <td style="max-width:28rem;"><span class="d-block text-truncate" title="{{ entry.summary }}">{{ entry.summary }}</span></td>
+              <td class="text-muted" style="font-family:var(--font-mono);font-size:0.78rem;">{{ entry.ip_address or '—' }}</td>
+              <td>
                 {% if entry.details_json %}
-                  <code class="d-block text-break text-start p-2 rounded mb-0" style="max-width:22rem;max-height:6rem;overflow:auto;white-space:pre-wrap;font-size:0.72rem;background:var(--bs-secondary-bg);">{{ entry.details_json }}</code>
+                  <code class="d-block text-break text-start p-2 rounded mb-0" style="max-width:22rem;max-height:6rem;overflow:auto;white-space:pre-wrap;font-size:0.72rem;background:var(--surface-2);border:1px solid var(--border);">{{ entry.details_json }}</code>
                 {% else %}
-                  —
+                  <span class="text-dim">—</span>
                 {% endif %}
               </td>
             </tr>
@@ -79,12 +93,29 @@
     </div>
   </div>
 
+  <div class="d-md-none d-flex flex-column gap-3 animate-fadein-2">
+    {% for entry in logs.items %}
+      <div class="cred-card">
+        <p class="text-dim mb-2" style="font-family:var(--font-mono);font-size:0.72rem;">{{ entry.created_at.strftime('%d.%m.%Y %H:%M:%S') if entry.created_at else '—' }}</p>
+        <p class="mb-1 fw-semibold">{{ entry.actor.username if entry.actor else '—' }}</p>
+        <p class="mb-2"><span class="badge badge-svc badge-svc-other">{{ action_labels.get(entry.action, entry.action) }}</span></p>
+        <p class="mb-2 small">{{ entry.summary }}</p>
+        <p class="text-dim mb-2" style="font-family:var(--font-mono);font-size:0.72rem;">IP: {{ entry.ip_address or '—' }}</p>
+        {% if entry.details_json %}
+          <code class="d-block text-break p-2 rounded" style="max-height:7rem;overflow:auto;white-space:pre-wrap;font-size:0.72rem;background:var(--surface-2);border:1px solid var(--border);">{{ entry.details_json }}</code>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="text-muted text-center py-4">Записей нет</p>
+    {% endfor %}
+  </div>
+
   {% if logs.pages > 1 %}
     <nav class="mt-4" aria-label="Страницы журнала">
       <ul class="pagination justify-content-center flex-wrap mb-0 gap-1">
         {% if logs.has_prev %}
           <li class="page-item">
-            <a class="page-link" href="{{ url_for('admin.admin_audit_log', page=logs.prev_num, action=action_filter or none, q=q or none) }}">
+            <a class="page-link js-async-nav" href="{{ url_for('admin.admin_audit_log', page=logs.prev_num, action=action_filter or none, q=q or none, dir=sort_dir) }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -95,14 +126,14 @@
               {% if page_num == logs.page %}
                 <span class="page-link">{{ page_num }}</span>
               {% else %}
-                <a class="page-link" href="{{ url_for('admin.admin_audit_log', page=page_num, action=action_filter or none, q=q or none) }}">{{ page_num }}</a>
+                <a class="page-link js-async-nav" href="{{ url_for('admin.admin_audit_log', page=page_num, action=action_filter or none, q=q or none, dir=sort_dir) }}">{{ page_num }}</a>
               {% endif %}
             </li>
           {% endif %}
         {% endfor %}
         {% if logs.has_next %}
           <li class="page-item">
-            <a class="page-link" href="{{ url_for('admin.admin_audit_log', page=logs.next_num, action=action_filter or none, q=q or none) }}">
+            <a class="page-link js-async-nav" href="{{ url_for('admin.admin_audit_log', page=logs.next_num, action=action_filter or none, q=q or none, dir=sort_dir) }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
@@ -110,9 +141,40 @@
       </ul>
     </nav>
   {% endif %}
+  </div>
 
   <p class="text-dim small mt-3 mb-0">
     Открытие одноразовой ссылки без имени пользователя — событие записывается с пустым «Кто» (публичная страница).
   </p>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const mountSelector = '#sv-admin-audit-page';
+  async function navigate(url, push = true) {
+    try {
+      const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!res.ok) return window.location.href = url;
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const next = doc.querySelector(mountSelector);
+      const cur = document.querySelector(mountSelector);
+      if (!next || !cur) return window.location.href = url;
+      cur.innerHTML = next.innerHTML;
+      if (push) window.history.pushState({ url }, '', url);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } catch (_) { window.location.href = url; }
+  }
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a.js-async-nav');
+    if (!link) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate(link.href);
+  });
+  window.addEventListener('popstate', () => navigate(window.location.href, false));
+})();
+</script>
 {% endblock %}

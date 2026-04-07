@@ -96,10 +96,19 @@ def upgrade_schema(db):
         if 'position' not in col_names:
             with engine.begin() as conn:
                 conn.execute(text('ALTER TABLE credential ADD COLUMN position INTEGER NOT NULL DEFAULT 0'))
+        if 'server_id' not in col_names:
+            with engine.begin() as conn:
+                conn.execute(text('ALTER TABLE credential ADD COLUMN server_id INTEGER'))
 
     db.create_all()
 
     if dialect == 'sqlite':
+        insp2 = inspect(engine)
+        if 'server' in insp2.get_table_names():
+            srv_cols = {c['name'] for c in insp2.get_columns('server')}
+            if 'description' not in srv_cols:
+                with engine.begin() as conn:
+                    conn.execute(text('ALTER TABLE server ADD COLUMN description TEXT'))
         with engine.begin() as conn:
             conn.execute(text('UPDATE credential_group SET position = id WHERE position = 0'))
             conn.execute(text('UPDATE credential SET position = id WHERE position = 0'))

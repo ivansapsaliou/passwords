@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<body style="margin:0;padding:0;background:#f7f8fb;font-family:Arial,sans-serif;color:#111827;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:#111827;color:#fbbf24;padding:20px 24px;font-size:22px;font-weight:700;">
+              SecureVault
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <p style="margin:0 0 12px 0;font-size:16px;">Здравствуйте, <b>{{ username }}</b>!</p>
+              <p style="margin:0 0 16px 0;color:#374151;">Пользователь <b>{{ grantor.username }}</b> выдал вам доступ к учётной записи в SecureVault.</p>
+              <div style="margin:0 0 16px 0;padding:12px;border:1px solid #e5e7eb;background:#f9fafb;border-radius:8px;">
+                <p style="margin:0 0 6px 0;font-size:14px;color:#111827;"><b>Название:</b> {{ credential.title }}</p>
+                <p style="margin:0;font-size:14px;color:#111827;"><b>Тип:</b> {{ credential.service_type }}</p>
+              </div>
+              <p style="margin:0 0 20px 0;">
+                <a href="{{ credential_link }}" style="display:inline-block;background:#d97706;color:#ffffff;text-decoration:none;padding:12px 16px;border-radius:8px;font-weight:600;">Открыть запись</a>
+              </p>
+              <p style="margin:0 0 8px 0;color:#4b5563;font-size:13px;">Если кнопка не работает, скопируйте ссылку:</p>
+              <p style="margin:0 0 16px 0;font-size:13px;word-break:break-all;color:#1f2937;">{{ credential_link }}</p>
+              <div style="padding:12px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;color:#92400e;font-size:13px;">
+                У вас доступ только на просмотр и копирование. Если вы не ожидали это письмо, обратитесь к администратору.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

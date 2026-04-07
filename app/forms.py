@@ -1,4 +1,5 @@
 import json
+import ipaddress
 from urllib.parse import urlparse
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
@@ -12,9 +13,12 @@ from wtforms import (
     HiddenField,
     RadioField,
     BooleanField,
+    FieldList,
+    FormField,
 )
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional, NumberRange
-from app.models import User
+from wtforms.widgets import HiddenInput
+from app.models import User, Server
 
 
 class LoginForm(FlaskForm):
@@ -63,26 +67,57 @@ class TotpDisableForm(FlaskForm):
         field.data = s
 
 
+SERVICE_TYPE_CHOICES = [
+    ('server', 'Сервер'),
+    ('database', 'База данных'),
+    ('app', 'Приложение'),
+    ('email', 'Email'),
+    ('cloud', 'Облачное хранилище'),
+    ('vpn', 'VPN'),
+    ('other', 'Другое'),
+]
+
+
+def _validate_ip_address_field(field):
+    if not field.data or not str(field.data).strip():
+        return
+    raw = str(field.data).strip()
+    try:
+        ipaddress.ip_address(raw)
+    except ValueError:
+        raise ValidationError('Укажите корректный IPv4 или IPv6')
+    field.data = raw
+
+
 class CredentialForm(FlaskForm):
     """Форма для добавления/редактирования учетных данных"""
     title = StringField('Название', validators=[DataRequired(), Length(min=1, max=120)])
-    service_type = SelectField('Тип сервиса', choices=[
-        ('server', 'Сервер'),
-        ('database', 'База данных'),
-        ('app', 'Приложение'),
-        ('email', 'Email'),
-        ('cloud', 'Облачное хранилище'),
-        ('vpn', 'VPN'),
-        ('other', 'Другое')
-    ])
+    service_type = SelectField('Тип сервиса', choices=SERVICE_TYPE_CHOICES)
     username = StringField('Имя пользователя', validators=[DataRequired()])
-    password = PasswordField('Пароль', validators=[DataRequired()])
+    password = PasswordField('Пароль', validators=[Optional()])
     url = StringField('URL/Адрес', validators=[Optional()])
     port = IntegerField('Порт', validators=[Optional(), NumberRange(min=1, max=65535, message='Порт от 1 до 65535')])
     description = TextAreaField('Описание', validators=[Optional()])
     group_id = SelectField('Группа', coerce=int, validators=[Optional()])
+    server_id = SelectField('Сервер', coerce=int, validators=[Optional()])
     extra_data_json = TextAreaField('Дополнительные данные (JSON)', validators=[Optional()])
     submit = SubmitField('Сохранить')
+
+    def __init__(self, require_password=True, user_id=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._require_password = require_password
+        self._user_id_for_server = user_id
+
+    def validate_password(self, field):
+        if self._require_password and not (field.data or '').strip():
+            raise ValidationError('Укажите пароль')
+
+    def validate_server_id(self, field):
+        if not self._user_id_for_server or not field.data or field.data == 0:
+            return
+        row = Server.query.filter_by(id=field.data, user_id=self._user_id_for_server).first()
+        if not row:
+            raise ValidationError('Указанный сервер не найден')
 
     def validate_url(self, field):
         if not field.data or not str(field.data).strip():
@@ -104,6 +139,84 @@ class CredentialForm(FlaskForm):
                 raise ValidationError('Ожидается JSON-объект, например {"ключ": "значение"}')
         except json.JSONDecodeError:
             raise ValidationError('Некорректный JSON')
+
+
+class CredentialInlineRowForm(FlaskForm):
+    """Строка учётки внутри формы «сервер + пакет» (без собственного CSRF)."""
+
+    class Meta:
+        csrf = False
+
+    credential_id = IntegerField(
+        'ID записи',
+        default=0,
+        widget=HiddenInput(),
+        validators=[Optional(), NumberRange(min=0)],
+    )
+    title = StringField('Название', validators=[Optional(), Length(max=120)])
+    username = StringField('Логин', validators=[Optional(), Length(max=255)])
+    password = PasswordField('Пароль', validators=[Optional()])
+    description = StringField('Описание', validators=[Optional(), Length(max=4000)])
+    service_type = SelectField('Тип', choices=SERVICE_TYPE_CHOICES, default='server')
+    group_id = SelectField('Группа', coerce=int, validators=[Optional()])
+
+
+class ServerForm(FlaskForm):
+    """Редактирование сервера (имя и IP)."""
+    name = StringField('Название', validators=[DataRequired(), Length(min=1, max=120)])
+    ip_address = StringField('IP-адрес', validators=[DataRequired(), Length(max=45)])
+    submit = SubmitField('Сохранить')
+
+    def validate_ip_address(self, field):
+        _validate_ip_address_field(field)
+
+
+class ServerWithCredentialsForm(FlaskForm):
+    """Создание сервера и нескольких учётных записей за один раз."""
+    name = StringField('Название сервера', validators=[DataRequired(), Length(min=1, max=120)])
+    ip_address = StringField('IP-адрес', validators=[DataRequired(), Length(max=45)])
+    server_description = TextAreaField('Описание хоста', validators=[Optional(), Length(max=12000)])
+    credentials = FieldList(FormField(CredentialInlineRowForm), min_entries=0, max_entries=200)
+    submit = SubmitField('Сохранить сервер и учётки')
+
+    def __init__(self, edit_mode=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._edit_mode = edit_mode
+
+    def validate_ip_address(self, field):
+        _validate_ip_address_field(field)
+
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators=extra_validators):
+            return False
+        ok = True
+        for entry in self.credentials.entries:
+            sub = entry.form
+            t = (sub.title.data or '').strip()
+            u = (sub.username.data or '').strip()
+            p = (sub.password.data or '').strip()
+            d = (sub.description.data or '').strip()
+            try:
+                cid = int(sub.credential_id.data or 0)
+            except (TypeError, ValueError):
+                cid = 0
+
+            if self._edit_mode and cid:
+                if not t and not u and not p and not d:
+                    continue
+                if not t or not u:
+                    err = 'Укажите название и логин или удалите строку'
+                    sub.title.errors.append(err)
+                    ok = False
+                continue
+
+            if not t and not u and not p and not d:
+                continue
+            if not (t and u and p):
+                err = 'Укажите название, логин и пароль полностью или очистите строку'
+                sub.title.errors.append(err)
+                ok = False
+        return ok
 
 
 class RestoreForm(FlaskForm):
@@ -247,10 +360,7 @@ class AdminEditUserForm(FlaskForm):
         Optional(),
         Length(min=8, message='Пароль не короче 8 символов'),
     ])
-    confirm_password = PasswordField('Подтверждение нового пароля', validators=[
-        Optional(),
-        EqualTo('new_password', message='Пароли не совпадают'),
-    ])
+    confirm_password = PasswordField('Подтверждение нового пароля', validators=[Optional()])
     submit = SubmitField('Сохранить')
 
     def __init__(self, user_id=None, *args, **kwargs):
@@ -263,6 +373,20 @@ class AdminEditUserForm(FlaskForm):
             q = q.filter(User.id != self._user_id)
         if q.first():
             raise ValidationError('Это имя уже занято')
+
+    def validate_new_password(self, field):
+        """Обрезка пробелов; EqualTo нельзя — в WTForms 3 он срабатывает до Form.validate()."""
+        if field.data is not None:
+            field.data = field.data.strip()
+
+    def validate_confirm_password(self, field):
+        new_p = (self.new_password.data or '').strip()
+        conf = (field.data or '').strip()
+        field.data = conf
+        if not new_p:
+            return
+        if conf != new_p:
+            raise ValidationError('Пароли не совпадают')
 
 class OneTimeLinkForm(FlaskForm):
     """Отправка одноразовой ссылки на показ учётных данных."""

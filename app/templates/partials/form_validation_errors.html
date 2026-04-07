@@ -1,0 +1,19 @@
+{# Показать все ошибки WTForms после неудачного POST (csrf_token, поля и т.д.) #}
+{% if form.errors %}
+<div class="alert alert-danger" role="alert">
+  <strong>Форма не сохранена.</strong> Ниже перечислены ошибки проверки.
+  <ul class="mb-0 mt-2 small">
+    {% for field_name, errs in form.errors.items() %}
+      {% for err in errs %}
+        <li><code>{{ field_name }}</code>: {{ err }}</li>
+      {% endfor %}
+    {% endfor %}
+  </ul>
+  <hr class="my-2">
+  <p class="small text-muted mb-0">
+    <strong>Как посмотреть в браузере:</strong>
+    F12 → <strong>Сеть</strong> (Network) → нажмите «Сохранить» → выберите запрос <code>POST</code> → вкладка «Ответ» (Response) или «Заголовки» (Headers, код 400/200).
+    Во вкладке <strong>Консоль</strong> смотрите красные сообщения (JS/CSP).
+  </p>
+</div>
+{% endif %}

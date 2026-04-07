@@ -23,12 +23,14 @@ from flask import (
 )
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import or_, nulls_last, update, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app import db, limiter
 from app.models import (
     User,
     Credential,
+    Server,
     CredentialGroup,
     CredentialHistory,
     CredentialShare,
@@ -47,6 +49,7 @@ from app.forms import (
     ImportCsvForm,
     RestoreForm,
     CredentialForm,
+    ServerWithCredentialsForm,
     GroupForm,
     ShareCredentialForm,
     ChangePasswordForm,
@@ -92,6 +95,9 @@ from app.audit_log import (
     ACTION_TOTP_REISSUED,
     ACTION_CREDENTIALS_IMPORTED,
     ACTION_CREDENTIALS_EXPORTED,
+    ACTION_SERVER_CREATED,
+    ACTION_SERVER_UPDATED,
+    ACTION_SERVER_DELETED,
     ACTION_LABELS,
     ALL_ACTIONS,
 )
@@ -133,6 +139,11 @@ def _build_onboarding_link(token: str) -> str:
     return f"{base}{url_for('auth.account_onboarding', token=token)}"
 
 
+def _build_absolute_url(path: str) -> str:
+    base = get_effective_public_base_url() or request.url_root.rstrip('/')
+    return f'{base}{path}'
+
+
 def _totp_qr_data(secret: str, email: str):
     uri = pyotp.totp.TOTP(secret).provisioning_uri(name=email, issuer_name='SecureVault')
     buf = io.BytesIO()
@@ -158,6 +169,63 @@ def _extra_from_form(form):
     if not form.extra_data_json.data or not str(form.extra_data_json.data).strip():
         return None
     return json.loads(form.extra_data_json.data)
+
+
+def _server_choices_for_form(user):
+    rows = Server.query.filter_by(user_id=user.id).order_by(Server.name).all()
+    return [(0, '— без сервера (только URL ниже) —')] + [
+        (r.id, f'{r.name} ({r.ip_address})') for r in rows
+    ]
+
+
+def _server_by_id_for_user(user_id, server_id):
+    """Сервер из списка пользователя или None (без сервера)."""
+    if not server_id or server_id == 0:
+        return None
+    return Server.query.filter_by(id=server_id, user_id=user_id).first()
+
+
+def _valid_group_id_for_user(user, gid):
+    if not gid or gid == 0:
+        return None
+    g = CredentialGroup.query.filter_by(id=gid, user_id=user.id).first()
+    return g.id if g else None
+
+
+def _populate_server_batch_row_group_choices(form, user):
+    choices = [(0, 'Без группы')] + [
+        (g.id, g.name)
+        for g in user.groups.order_by(CredentialGroup.position, CredentialGroup.name).all()
+    ]
+    for entry in form.credentials.entries:
+        entry.form.group_id.choices = choices
+
+
+def _create_credential_on_server(
+    user, server_id, title, username, password, service_type, group_id, description=None
+):
+    cred = Credential(
+        title=title[:120],
+        service_type=service_type,
+        description=description,
+        url=None,
+        port=None,
+        user_id=user.id,
+        group_id=group_id,
+        server_id=server_id,
+    )
+    cred.set_credentials(username, password)
+    cred.apply_extra_data(None)
+    db.session.add(cred)
+    db.session.flush()
+    cred.position = cred.id
+    record_audit(
+        user.id,
+        ACTION_CREDENTIAL_CREATED,
+        f'Создана запись «{cred.title}»',
+        {'credential_id': cred.id},
+    )
+    return cred
 
 
 def _visible_credentials_query(user):
@@ -192,6 +260,7 @@ def _snapshot_credential_plain(credential):
         'url': credential.url,
         'port': credential.port,
         'group_id': credential.group_id,
+        'server_id': credential.server_id,
         'extra_data': credential.get_extra_data(),
     }
 
@@ -507,8 +576,24 @@ def dashboard():
     visible = _visible_credentials_query(current_user)
     total_credentials = visible.count()
     total_groups = len(groups)
+    total_servers = current_user.servers.count()
 
     recent_credentials = visible.order_by(nulls_last(Credential.last_accessed.desc())).limit(5).all()
+    recent_updates = visible.order_by(nulls_last(Credential.updated_at.desc())).limit(6).all()
+    stale_border = datetime.utcnow() - timedelta(days=90)
+    stale_credentials = visible.filter(
+        or_(Credential.updated_at.is_(None), Credential.updated_at < stale_border)
+    ).count()
+    ungrouped_credentials = visible.filter(Credential.group_id.is_(None)).count()
+    with_server_credentials = visible.filter(Credential.server_id.isnot(None)).count()
+
+    top_groups = []
+    for group in groups:
+        count = group.credentials.count()
+        if count > 0:
+            top_groups.append({'name': group.name, 'color': group.color, 'count': count})
+    top_groups.sort(key=lambda item: (-item['count'], item['name'].lower()))
+    top_groups = top_groups[:6]
 
     service_types = {}
     for cred in visible.all():
@@ -519,7 +604,13 @@ def dashboard():
         groups=groups,
         total_credentials=total_credentials,
         total_groups=total_groups,
+        total_servers=total_servers,
+        stale_credentials=stale_credentials,
+        ungrouped_credentials=ungrouped_credentials,
+        with_server_credentials=with_server_credentials,
         recent_credentials=recent_credentials,
+        recent_updates=recent_updates,
+        top_groups=top_groups,
         service_types=service_types,
     )
 
@@ -540,11 +631,16 @@ def api_search_credentials():
         return jsonify({'results': []})
     query = _visible_credentials_query(current_user)
     pat = f'%{q}%'
-    query = query.filter(
-        or_(Credential.title.ilike(pat), Credential.description.ilike(pat))
+    query = query.outerjoin(Server, Credential.server_id == Server.id).filter(
+        or_(
+            Credential.title.ilike(pat),
+            Credential.description.ilike(pat),
+            Server.name.ilike(pat),
+            Server.ip_address.ilike(pat),
+        )
     )
     rows = (
-        query.options(joinedload(Credential.group))
+        query.options(joinedload(Credential.group), joinedload(Credential.server))
         .order_by(Credential.title)
         .limit(25)
         .all()
@@ -556,7 +652,7 @@ def api_search_credentials():
                     'id': c.id,
                     'title': c.title,
                     'group_name': c.group.name if c.group else None,
-                    'url': c.url or '',
+                    'url': (c.server.ip_address if c.server else (c.url or '')),
                 }
                 for c in rows
             ]
@@ -569,8 +665,28 @@ def api_search_credentials():
 @login_required
 @admin_required
 def admin_user_list():
-    users = User.query.order_by(User.username).all()
-    return render_template('admin_users.html', users=users)
+    page = request.args.get('page', 1, type=int)
+    q = (request.args.get('q') or '').strip()
+    sort_by = (request.args.get('sort') or 'username').strip()
+    sort_dir = (request.args.get('dir') or 'asc').strip().lower()
+    if sort_dir not in {'asc', 'desc'}:
+        sort_dir = 'asc'
+
+    sort_map = {
+        'username': User.username,
+        'email': User.email,
+        'created_at': User.created_at,
+        'last_login': User.last_login,
+    }
+    sort_col = sort_map.get(sort_by, User.username)
+    order_expr = sort_col.desc() if sort_dir == 'desc' else sort_col.asc()
+
+    query = User.query
+    if q:
+        pat = f'%{q}%'
+        query = query.filter(or_(User.username.ilike(pat), User.email.ilike(pat)))
+    users = query.order_by(order_expr, User.username.asc()).paginate(page=page, per_page=40)
+    return render_template('admin_users.html', users=users, q=q, sort_by=sort_by, sort_dir=sort_dir)
 
 
 @admin_bp.route('/audit-log')
@@ -581,8 +697,12 @@ def admin_audit_log():
     page = request.args.get('page', 1, type=int)
     action_filter = (request.args.get('action') or '').strip()
     q = (request.args.get('q') or '').strip()
+    sort_dir = (request.args.get('dir') or 'desc').strip().lower()
+    if sort_dir not in {'asc', 'desc'}:
+        sort_dir = 'desc'
 
-    query = AuditLog.query.options(joinedload(AuditLog.actor)).order_by(AuditLog.created_at.desc())
+    order_expr = AuditLog.created_at.desc() if sort_dir == 'desc' else AuditLog.created_at.asc()
+    query = AuditLog.query.options(joinedload(AuditLog.actor)).order_by(order_expr)
     if action_filter in ALL_ACTIONS:
         query = query.filter(AuditLog.action == action_filter)
     if q:
@@ -595,6 +715,7 @@ def admin_audit_log():
         logs=logs,
         action_filter=action_filter,
         q=q,
+        sort_dir=sort_dir,
         action_labels=ACTION_LABELS,
         all_actions=ALL_ACTIONS,
     )
@@ -691,6 +812,13 @@ def admin_user_edit(user_id):
         db.session.commit()
         flash(f'Данные пользователя «{user.username}» сохранены.', 'success')
         return redirect(url_for('admin.admin_user_list'))
+
+    if request.method == 'POST' and form.is_submitted():
+        current_app.logger.warning(
+            'admin_user_edit: валидация не прошла user_id=%s errors=%s',
+            user_id,
+            form.errors,
+        )
 
     if request.method == 'GET':
         form.username.data = user.username
@@ -849,10 +977,38 @@ def users_for_share():
     """До 10 пользователей для выбора при расшаривании (подстрока в имени или первые по алфавиту)."""
     q = (request.args.get('q') or '').strip()
     credential_id = request.args.get('credential_id', type=int)
+    credential_ids_raw = (request.args.get('credential_ids') or '').strip()
     limit = 10
 
     exclude = {current_user.id}
-    if credential_id:
+
+    if credential_ids_raw:
+        id_parts = [int(x) for x in credential_ids_raw.split(',') if x.strip().isdigit()]
+        id_parts = list(dict.fromkeys(id_parts))
+        if id_parts:
+            n_ok = (
+                Credential.query.filter(
+                    Credential.id.in_(id_parts),
+                    Credential.user_id == current_user.id,
+                ).count()
+            )
+            if n_ok != len(id_parts):
+                return jsonify({'users': []})
+            if len(id_parts) == 1:
+                rows = db.session.query(CredentialShare.shared_with_user_id).filter_by(
+                    credential_id=id_parts[0]
+                ).all()
+                exclude.update(r[0] for r in rows)
+            else:
+                rows = (
+                    db.session.query(CredentialShare.shared_with_user_id)
+                    .filter(CredentialShare.credential_id.in_(id_parts))
+                    .group_by(CredentialShare.shared_with_user_id)
+                    .having(func.count(CredentialShare.id) == len(id_parts))
+                    .all()
+                )
+                exclude.update(r[0] for r in rows)
+    elif credential_id:
         cred = Credential.query.get(credential_id)
         if cred and cred.user_id == current_user.id:
             rows = db.session.query(CredentialShare.shared_with_user_id).filter_by(
@@ -874,20 +1030,57 @@ def list_credentials():
     page = request.args.get('page', 1, type=int)
     group_id = request.args.get('group_id', None, type=int)
     search = request.args.get('search', '')
+    sort_by = (request.args.get('sort') or 'position').strip().lower()
+    sort_dir = (request.args.get('dir') or 'asc').strip().lower()
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'asc'
 
     query = _visible_credentials_query(current_user)
 
     if group_id:
         query = query.filter_by(group_id=group_id)
 
+    sort_map = {
+        'title': Credential.title,
+        'service_type': Credential.service_type,
+        'description': Credential.description,
+        'url': Credential.url,
+        'updated_at': Credential.updated_at,
+    }
+    if sort_by not in sort_map:
+        sort_by = 'position'
+
+    need_server_join = bool(search) or sort_by == 'url'
+    if need_server_join:
+        query = query.outerjoin(Server, Credential.server_id == Server.id)
+
     if search:
-        query = query.filter(Credential.title.ilike(f'%{search}%'))
+        pat = f'%{search}%'
+        query = query.filter(
+            or_(
+                Credential.title.ilike(pat),
+                Server.name.ilike(pat),
+                Server.ip_address.ilike(pat),
+            )
+        )
+
+    if sort_by == 'position':
+        order_clause = Credential.position.asc()
+        secondary_clause = Credential.title.asc()
+    else:
+        if sort_by == 'url':
+            col = func.coalesce(Server.ip_address, Credential.url)
+        else:
+            col = sort_map[sort_by]
+        order_clause = col.desc() if sort_dir == 'desc' else col.asc()
+        secondary_clause = Credential.title.asc()
 
     credentials = (
-        query.order_by(
+        query.options(joinedload(Credential.server))
+        .order_by(
             nulls_last(Credential.group_id),
-            Credential.position.asc(),
-            Credential.title.asc(),
+            nulls_last(order_clause),
+            secondary_clause,
         ).paginate(page=page, per_page=10)
     )
     groups = current_user.groups.order_by(CredentialGroup.position, CredentialGroup.name).all()
@@ -900,7 +1093,9 @@ def list_credentials():
         groups_meta=groups_meta,
         search=search,
         group_id=group_id,
-        can_sort_credentials=bool(group_id) and not bool(search),
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        can_sort_credentials=bool(group_id) and not bool(search) and sort_by == 'position',
     )
 
 
@@ -984,21 +1179,36 @@ def import_credentials_csv():
 @login_required
 def add_credential():
     """Добавление нового учетного данного"""
-    form = CredentialForm()
+    form = CredentialForm(user_id=current_user.id)
     form.group_id.choices = [(0, 'Без группы')] + [
         (g.id, g.name)
         for g in current_user.groups.order_by(CredentialGroup.position, CredentialGroup.name).all()
     ]
+    form.server_id.choices = _server_choices_for_form(current_user)
+
+    if request.method == 'GET':
+        sid = request.args.get('server_id', type=int)
+        if sid:
+            form.server_id.data = sid
+        gid = request.args.get('group_id', type=int)
+        if gid:
+            form.group_id.data = gid
 
     if form.validate_on_submit():
+        server = _server_by_id_for_user(current_user.id, form.server_id.data)
+
+        url_val = None if server else form.url.data
+        port_val = None if server else form.port.data
+
         credential = Credential(
             title=form.title.data,
             service_type=form.service_type.data,
             description=form.description.data,
-            url=form.url.data,
-            port=form.port.data,
+            url=url_val,
+            port=port_val,
             user_id=current_user.id,
             group_id=form.group_id.data if form.group_id.data != 0 else None,
+            server_id=server.id if server else None,
         )
 
         credential.set_credentials(form.username.data, form.password.data)
@@ -1021,11 +1231,450 @@ def add_credential():
     return render_template('add_credential.html', form=form)
 
 
+@credential_bp.route('/servers')
+@login_required
+def list_servers():
+    """Список серверов пользователя с учётками для раскрывающихся блоков."""
+    from collections import defaultdict
+
+    sort_map = {
+        'name': Server.name,
+        'ip_address': Server.ip_address,
+        'updated_at': Server.updated_at,
+    }
+    sort_by = (request.args.get('sort') or 'name').strip()
+    if sort_by not in sort_map:
+        sort_by = 'name'
+    sort_order = (request.args.get('order') or 'asc').strip().lower()
+    if sort_order not in ('asc', 'desc'):
+        sort_order = 'asc'
+    col = sort_map[sort_by]
+    if sort_order == 'desc':
+        servers = (
+            Server.query.filter_by(user_id=current_user.id)
+            .order_by(nulls_last(col.desc()))
+            .all()
+        )
+    else:
+        servers = (
+            Server.query.filter_by(user_id=current_user.id)
+            .order_by(nulls_last(col.asc()))
+            .all()
+        )
+    credentials_by_server = defaultdict(list)
+    creds = (
+        Credential.query.filter_by(user_id=current_user.id)
+        .filter(Credential.server_id.isnot(None))
+        .options(joinedload(Credential.group), joinedload(Credential.server))
+        .order_by(Credential.title)
+        .all()
+    )
+    for c in creds:
+        credentials_by_server[c.server_id].append(c)
+    share_bulk_form = ShareCredentialForm(prefix='bulkshare')
+    return render_template(
+        'servers_list.html',
+        servers=servers,
+        credentials_by_server=credentials_by_server,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        share_bulk_form=share_bulk_form,
+    )
+
+
+@credential_bp.route('/share/bulk', methods=['POST'])
+@login_required
+def share_credentials_bulk():
+    """Выдать доступ к нескольким учётным записям одному пользователю (страница «Серверы»)."""
+    form = ShareCredentialForm(prefix='bulkshare')
+    raw_ids = (request.form.get('credential_ids') or '').strip()
+    id_list = []
+    for x in raw_ids.split(','):
+        x = x.strip()
+        if x.isdigit():
+            id_list.append(int(x))
+    id_list = list(dict.fromkeys(id_list))
+
+    if not form.validate_on_submit():
+        for errors in form.errors.values():
+            for err in errors:
+                flash(err, 'danger')
+        return redirect(url_for('credential_bp.list_servers'))
+
+    if not id_list:
+        flash('Отметьте хотя бы одну учётную запись.', 'warning')
+        return redirect(url_for('credential_bp.list_servers'))
+
+    credentials = (
+        Credential.query.filter(
+            Credential.id.in_(id_list),
+            Credential.user_id == current_user.id,
+        )
+        .order_by(Credential.title)
+        .all()
+    )
+    if len(credentials) != len(id_list):
+        flash('Некоторые записи недоступны или не найдены.', 'danger')
+        return redirect(url_for('credential_bp.list_servers'))
+
+    username = (form.username.data or '').strip()
+    target = User.query.filter_by(username=username).first()
+    if not target:
+        flash('Пользователь с таким именем не найден', 'warning')
+        return redirect(url_for('credential_bp.list_servers'))
+    if target.id == current_user.id:
+        flash('Нельзя поделиться записью с самим собой', 'warning')
+        return redirect(url_for('credential_bp.list_servers'))
+
+    to_grant = []
+    for cred in credentials:
+        if CredentialShare.query.filter_by(
+            credential_id=cred.id, shared_with_user_id=target.id
+        ).first():
+            continue
+        to_grant.append(cred)
+
+    if not to_grant:
+        flash('У выбранного пользователя уже есть доступ ко всем отмеченным записям.', 'info')
+        return redirect(url_for('credential_bp.list_servers'))
+
+    if not mail_configured():
+        flash('Почта не настроена: без email-уведомления нельзя выдать доступ.', 'danger')
+        return redirect(url_for('credential_bp.list_servers'))
+    if not (target.email or '').strip():
+        flash('У пользователя не указан email — отправка уведомления невозможна.', 'danger')
+        return redirect(url_for('credential_bp.list_servers'))
+
+    items = []
+    for cred in to_grant:
+        items.append(
+            {
+                'title': cred.title,
+                'service_type': cred.service_type,
+                'link': _build_absolute_url(
+                    url_for('credential_bp.view_credential', credential_id=cred.id)
+                ),
+            }
+        )
+    n = len(items)
+    subject = (
+        f'SecureVault: вам выдан доступ к записи «{to_grant[0].title}»'
+        if n == 1
+        else f'SecureVault: вам выдан доступ к {n} записям'
+    )
+
+    try:
+        for cred in to_grant:
+            db.session.add(
+                CredentialShare(
+                    credential_id=cred.id,
+                    shared_with_user_id=target.id,
+                    shared_by_user_id=current_user.id,
+                )
+            )
+        for cred in to_grant:
+            record_audit(
+                current_user.id,
+                ACTION_SHARE_GRANTED,
+                f'Доступ к «{cred.title}» → «{target.username}»',
+                {
+                    'credential_id': cred.id,
+                    'shared_with_user_id': target.id,
+                    'shared_with_username': target.username,
+                },
+            )
+        text_body = render_template(
+            'emails/share_granted_bulk.txt',
+            username=target.username,
+            grantor=current_user,
+            items=items,
+            n=n,
+        )
+        html_body = render_template(
+            'emails/share_granted_bulk.html',
+            username=target.username,
+            grantor=current_user,
+            items=items,
+            n=n,
+        )
+        send_email(target.email.strip(), subject, text_body, html_body=html_body)
+        db.session.commit()
+        flash(
+            f'Доступ к {"записи" if n == 1 else "записям"} ({n}) выдан '
+            f'пользователю «{target.username}» (только просмотр и копирование). Отправлено одно письмо.',
+            'success',
+        )
+    except Exception as ex:
+        db.session.rollback()
+        flash(f'Не удалось выдать доступ: {ex}', 'danger')
+
+    return redirect(url_for('credential_bp.list_servers'))
+
+
+@credential_bp.route('/servers/add', methods=['GET', 'POST'])
+@login_required
+def add_server():
+    """Создание сервера и опционально пакета учётных записей."""
+    form = ServerWithCredentialsForm()
+    if request.method == 'GET' and len(form.credentials.entries) == 0:
+        form.credentials.append_entry()
+    _populate_server_batch_row_group_choices(form, current_user)
+
+    if form.validate_on_submit():
+        name = (form.name.data or '').strip()
+        ip = (form.ip_address.data or '').strip()
+        if Server.query.filter_by(user_id=current_user.id, name=name).first():
+            flash('Сервер с таким именем уже есть. Укажите другое имя или отредактируйте существующий.', 'danger')
+            return render_template('add_server.html', form=form, server=None)
+
+        srv = Server(
+            user_id=current_user.id,
+            name=name,
+            ip_address=ip,
+            description=(form.server_description.data or '').strip() or None,
+        )
+        db.session.add(srv)
+        try:
+            db.session.flush()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Не удалось сохранить сервер (конфликт имени).', 'danger')
+            return render_template('add_server.html', form=form, server=None)
+
+        n_cred = 0
+        for entry in form.credentials.entries:
+            sub = entry.form
+            t = (sub.title.data or '').strip()
+            u = (sub.username.data or '').strip()
+            p = (sub.password.data or '').strip()
+            d = (sub.description.data or '').strip()
+            if not t and not u and not p and not d:
+                continue
+            gid = _valid_group_id_for_user(current_user, sub.group_id.data)
+            _create_credential_on_server(
+                current_user,
+                srv.id,
+                t,
+                u,
+                p,
+                sub.service_type.data,
+                gid,
+                description=d or None,
+            )
+            n_cred += 1
+
+        record_audit(
+            current_user.id,
+            ACTION_SERVER_CREATED,
+            f'Создан сервер «{srv.name}» ({srv.ip_address})',
+            {'server_id': srv.id, 'credentials_added': n_cred},
+        )
+        db.session.commit()
+        if n_cred:
+            flash(f'Сервер сохранён, добавлено учётных записей: {n_cred}.', 'success')
+        else:
+            flash('Сервер сохранён.', 'success')
+        return redirect(url_for('credential_bp.list_servers'))
+
+    if len(form.credentials.entries) == 0:
+        form.credentials.append_entry()
+        _populate_server_batch_row_group_choices(form, current_user)
+    return render_template('add_server.html', form=form, server=None)
+
+
+@credential_bp.route('/servers/<int:server_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_server(server_id):
+    srv = Server.query.filter_by(id=server_id, user_id=current_user.id).first_or_404()
+    form = ServerWithCredentialsForm(edit_mode=True)
+
+    existing_creds = (
+        Credential.query.filter_by(user_id=current_user.id, server_id=srv.id)
+        .order_by(Credential.title)
+        .all()
+    )
+
+    if request.method == 'GET':
+        form.name.data = srv.name
+        form.ip_address.data = srv.ip_address
+        form.server_description.data = srv.description or ''
+        while len(form.credentials.entries):
+            form.credentials.pop_entry()
+        if not existing_creds:
+            form.credentials.append_entry()
+        else:
+            for c in existing_creds:
+                form.credentials.append_entry()
+                row = form.credentials.entries[-1].form
+                row.credential_id.data = c.id
+                row.title.data = c.title
+                row.username.data = c.get_username()
+                row.password.data = c.get_password()
+                row.description.data = c.description or ''
+                row.service_type.data = c.service_type
+                row.group_id.data = c.group_id or 0
+        _populate_server_batch_row_group_choices(form, current_user)
+
+    if request.method == 'POST':
+        _populate_server_batch_row_group_choices(form, current_user)
+
+    if form.validate_on_submit():
+        name = (form.name.data or '').strip()
+        ip = (form.ip_address.data or '').strip()
+        dup = (
+            Server.query.filter_by(user_id=current_user.id, name=name)
+            .filter(Server.id != srv.id)
+            .first()
+        )
+        if dup:
+            flash('Сервер с таким именем уже есть. Укажите другое имя.', 'danger')
+            return render_template('add_server.html', form=form, server=srv)
+
+        existing_ids = {
+            c.id
+            for c in Credential.query.filter_by(
+                user_id=current_user.id, server_id=srv.id
+            ).all()
+        }
+
+        srv.name = name
+        srv.ip_address = ip
+        srv.description = (form.server_description.data or '').strip() or None
+        handled_ids = set()
+
+        for entry in form.credentials.entries:
+            sub = entry.form
+            try:
+                cid = int(sub.credential_id.data or 0)
+            except (TypeError, ValueError):
+                cid = 0
+            t = (sub.title.data or '').strip()
+            u = (sub.username.data or '').strip()
+            p = (sub.password.data or '').strip()
+            d = (sub.description.data or '').strip()
+
+            if cid and not t and not u and not p and not d:
+                cred = Credential.query.filter_by(
+                    id=cid, user_id=current_user.id, server_id=srv.id
+                ).first()
+                if cred:
+                    db.session.delete(cred)
+                    record_audit(
+                        current_user.id,
+                        ACTION_CREDENTIAL_DELETED,
+                        f'Удалена запись «{cred.title}»',
+                        {'credential_id': cred.id},
+                    )
+                handled_ids.add(cid)
+                continue
+
+            if not t and not u and not p and not d:
+                continue
+
+            gid = _valid_group_id_for_user(current_user, sub.group_id.data)
+
+            if cid:
+                cred = Credential.query.filter_by(
+                    id=cid, user_id=current_user.id, server_id=srv.id
+                ).first()
+                if not cred:
+                    continue
+                cred.title = t[:120]
+                cred.service_type = sub.service_type.data
+                cred.group_id = gid
+                cred.description = d or None
+                if p:
+                    cred.set_credentials(u, p)
+                else:
+                    cred.set_credentials(u, cred.get_password())
+                record_audit(
+                    current_user.id,
+                    ACTION_CREDENTIAL_UPDATED,
+                    f'Обновлена запись «{cred.title}»',
+                    {'credential_id': cred.id},
+                )
+                handled_ids.add(cid)
+            else:
+                new_cred = _create_credential_on_server(
+                    current_user,
+                    srv.id,
+                    t,
+                    u,
+                    p,
+                    sub.service_type.data,
+                    gid,
+                    description=d or None,
+                )
+                handled_ids.add(new_cred.id)
+
+        for oid in existing_ids:
+            if oid not in handled_ids:
+                orphan = Credential.query.filter_by(
+                    id=oid, user_id=current_user.id, server_id=srv.id
+                ).first()
+                if orphan:
+                    t = orphan.title
+                    db.session.delete(orphan)
+                    record_audit(
+                        current_user.id,
+                        ACTION_CREDENTIAL_DELETED,
+                        f'Удалена запись «{t}»',
+                        {'credential_id': oid},
+                    )
+
+        record_audit(
+            current_user.id,
+            ACTION_SERVER_UPDATED,
+            f'Изменён сервер «{srv.name}» ({srv.ip_address})',
+            {'server_id': srv.id},
+        )
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Не удалось сохранить (конфликт имени).', 'danger')
+            return render_template('add_server.html', form=form, server=srv)
+
+        flash('Сервер и учётные записи сохранены.', 'success')
+        return redirect(url_for('credential_bp.list_servers'))
+
+    if len(form.credentials.entries) == 0:
+        form.credentials.append_entry()
+        _populate_server_batch_row_group_choices(form, current_user)
+
+    return render_template('add_server.html', form=form, server=srv)
+
+
+@credential_bp.route('/servers/<int:server_id>/delete', methods=['POST'])
+@login_required
+def delete_server(server_id):
+    srv = Server.query.filter_by(id=server_id, user_id=current_user.id).first_or_404()
+    title = srv.name
+    sid = srv.id
+    Credential.query.filter_by(user_id=current_user.id, server_id=srv.id).update(
+        {'server_id': None},
+        synchronize_session=False,
+    )
+    db.session.delete(srv)
+    record_audit(
+        current_user.id,
+        ACTION_SERVER_DELETED,
+        f'Удалён сервер «{title}»',
+        {'server_id': sid},
+    )
+    db.session.commit()
+    flash('Сервер удалён. Учётные записи сохранены без привязки к серверу.', 'info')
+    return redirect(url_for('credential_bp.list_servers'))
+
+
 @credential_bp.route('/<int:credential_id>/view')
 @login_required
 def view_credential(credential_id):
     """Просмотр записи без редактирования (для получателей общего доступа)."""
-    credential = Credential.query.get_or_404(credential_id)
+    credential = (
+        Credential.query.options(joinedload(Credential.server))
+        .get_or_404(credential_id)
+    )
     access = _credential_access(current_user, credential)
     if access is None:
         flash('У вас нет доступа к этому ресурсу', 'danger')
@@ -1063,22 +1712,30 @@ def edit_credential(credential_id):
     if access == 'shared':
         return redirect(url_for('credential_bp.view_credential', credential_id=credential_id))
 
-    form = CredentialForm()
+    form = CredentialForm(require_password=False, user_id=current_user.id)
     form.group_id.choices = [(0, 'Без группы')] + [
         (g.id, g.name)
         for g in current_user.groups.order_by(CredentialGroup.position, CredentialGroup.name).all()
     ]
+    form.server_id.choices = _server_choices_for_form(current_user)
 
     if form.validate_on_submit():
         _append_credential_history(credential, current_user.id)
+        server = _server_by_id_for_user(current_user.id, form.server_id.data)
+
         credential.title = form.title.data
         credential.service_type = form.service_type.data
         credential.description = form.description.data
         credential.url = form.url.data
         credential.port = form.port.data
         credential.group_id = form.group_id.data if form.group_id.data != 0 else None
+        credential.server_id = server.id if server else None
 
-        credential.set_credentials(form.username.data, form.password.data)
+        new_pw = (form.password.data or '').strip()
+        if new_pw:
+            credential.set_credentials(form.username.data, new_pw)
+        else:
+            credential.set_credentials(form.username.data, credential.get_password())
         credential.apply_extra_data(_extra_from_form(form))
 
         record_audit(
@@ -1091,7 +1748,14 @@ def edit_credential(credential_id):
         flash('Учетные данные обновлены!', 'success')
         return redirect(url_for('credential_bp.list_credentials'))
 
-    elif request.method == 'GET':
+    if request.method == 'POST' and form.is_submitted():
+        current_app.logger.warning(
+            'edit_credential: валидация не прошла credential_id=%s errors=%s',
+            credential_id,
+            form.errors,
+        )
+
+    if request.method == 'GET':
         form.title.data = credential.title
         form.service_type.data = credential.service_type
         form.description.data = credential.description
@@ -1100,6 +1764,7 @@ def edit_credential(credential_id):
         form.url.data = credential.url
         form.port.data = credential.port
         form.group_id.data = credential.group_id or 0
+        form.server_id.data = credential.server_id or 0
         extra = credential.get_extra_data()
         if extra:
             form.extra_data_json.data = json.dumps(extra, ensure_ascii=False, indent=2)
@@ -1145,6 +1810,7 @@ def restore_credential_history(credential_id, history_id):
     credential.url = snap.get('url')
     credential.port = snap.get('port')
     credential.group_id = snap.get('group_id')
+    credential.server_id = snap.get('server_id')
     credential.set_credentials(snap['username'], snap['password'])
     credential.apply_extra_data(snap.get('extra_data'))
     record_audit(
@@ -1278,10 +1944,24 @@ def credential_one_time_link(credential_id):
         f'Ссылка действует до {expires_at.strftime("%Y-%m-%d %H:%M")} UTC и сработает один раз.\n\n'
         f'{full_link}\n'
     )
+    text_body = render_template(
+        'emails/one_time_link.txt',
+        credential=credential,
+        sender_user=current_user,
+        full_link=full_link,
+        expires_at=expires_at,
+    )
+    html_body = render_template(
+        'emails/one_time_link.html',
+        credential=credential,
+        sender_user=current_user,
+        full_link=full_link,
+        expires_at=expires_at,
+    )
 
     try:
         if method == 'email':
-            send_email(recipient, subject, body)
+            send_email(recipient, subject, text_body, html_body=html_body)
         else:
             send_telegram_message(recipient, body)
     except Exception as ex:
@@ -1354,6 +2034,13 @@ def share_credential(credential_id):
     elif CredentialShare.query.filter_by(credential_id=credential.id, shared_with_user_id=target.id).first():
         flash('Доступ для этого пользователя уже выдан', 'info')
     else:
+        if not mail_configured():
+            flash('Почта не настроена: без email-уведомления нельзя выдать доступ.', 'danger')
+            return _share_credential_redirect(credential_id, share_form)
+        if not (target.email or '').strip():
+            flash('У пользователя не указан email — отправка уведомления невозможна.', 'danger')
+            return _share_credential_redirect(credential_id, share_form)
+
         db.session.add(
             CredentialShare(
                 credential_id=credential.id,
@@ -1361,6 +2048,31 @@ def share_credential(credential_id):
                 shared_by_user_id=current_user.id,
             )
         )
+        credential_link = _build_absolute_url(
+            url_for('credential_bp.view_credential', credential_id=credential.id)
+        )
+        subject = f'SecureVault: вам выдан доступ к записи «{credential.title}»'
+        text_body = render_template(
+            'emails/share_granted.txt',
+            username=target.username,
+            credential=credential,
+            grantor=current_user,
+            credential_link=credential_link,
+        )
+        html_body = render_template(
+            'emails/share_granted.html',
+            username=target.username,
+            credential=credential,
+            grantor=current_user,
+            credential_link=credential_link,
+        )
+        try:
+            send_email(target.email.strip(), subject, text_body, html_body=html_body)
+        except Exception as ex:
+            db.session.rollback()
+            flash(f'Доступ не выдан: не удалось отправить email ({ex})', 'danger')
+            return _share_credential_redirect(credential_id, share_form)
+
         record_audit(
             current_user.id,
             ACTION_SHARE_GRANTED,

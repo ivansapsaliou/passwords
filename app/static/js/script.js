@@ -218,10 +218,14 @@ function flashBtn(btn, successClass) {
 }
 
 /* ── Подсказки пользователей при расшаривании (до 10) ─────── */
-function svUsersForShareUrl(apiBase, q, credentialId) {
+function svUsersForShareUrl(apiBase, q, credentialId, credentialIds) {
   const url = new URL(apiBase, window.location.origin);
   url.searchParams.set('q', q);
-  if (credentialId) url.searchParams.set('credential_id', String(credentialId));
+  if (credentialIds) {
+    url.searchParams.set('credential_ids', credentialIds);
+  } else if (credentialId) {
+    url.searchParams.set('credential_id', String(credentialId));
+  }
   return url.pathname + url.search;
 }
 
@@ -260,11 +264,12 @@ function initSvShareUserPickers() {
 
     const load = () => {
       const q = input.value.trim();
+      const credIds = container.getAttribute('data-sv-credential-ids') || '';
       const credId =
         input.getAttribute('data-credential-id') ||
         container.getAttribute('data-sv-credential-id') ||
         '';
-      fetch(svUsersForShareUrl(apiBase, q, credId), {
+      fetch(svUsersForShareUrl(apiBase, q, credId || null, credIds || null), {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
         .then(r => r.json())

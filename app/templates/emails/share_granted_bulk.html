@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<body style="margin:0;padding:0;background:#f7f8fb;font-family:Arial,sans-serif;color:#111827;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:#111827;color:#fbbf24;padding:20px 24px;font-size:22px;font-weight:700;">
+              SecureVault
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <p style="margin:0 0 12px 0;font-size:16px;">Здравствуйте, <b>{{ username }}</b>!</p>
+              <p style="margin:0 0 16px 0;color:#374151;">Пользователь <b>{{ grantor.username }}</b> выдал вам доступ к <b>{{ n }}</b> {{ 'учётной записи' if n == 1 else 'учётным записям' }} в SecureVault.</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 16px 0;border-collapse:collapse;">
+                {% for item in items %}
+                <tr>
+                  <td style="padding:10px 12px;border:1px solid #e5e7eb;background:#f9fafb;border-radius:8px;margin-bottom:8px;">
+                    <p style="margin:0 0 6px 0;font-size:14px;color:#111827;"><b>{{ item.title }}</b></p>
+                    <p style="margin:0 0 8px 0;font-size:13px;color:#6b7280;">Тип: {{ item.service_type }}</p>
+                    <a href="{{ item.link }}" style="display:inline-block;background:#d97706;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600;">Открыть запись</a>
+                    <p style="margin:8px 0 0 0;font-size:12px;word-break:break-all;color:#9ca3af;">{{ item.link }}</p>
+                  </td>
+                </tr>
+                {% if not loop.last %}
+                <tr><td style="height:8px;"></td></tr>
+                {% endif %}
+                {% endfor %}
+              </table>
+              <div style="padding:12px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;color:#92400e;font-size:13px;">
+                У вас доступ только на просмотр и копирование. Если вы не ожидали это письмо, обратитесь к администратору.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

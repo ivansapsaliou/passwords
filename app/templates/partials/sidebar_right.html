@@ -35,6 +35,16 @@
       </a>
     </li>
 
+    <li class="sv-nav-item">
+      <a class="sv-nav-link" href="{{ url_for('credential_bp.list_servers') }}">
+        <span class="sv-nav-icon"><i class="bi bi-hdd-network-fill"></i></span>
+        <span>Серверы</span>
+        <span class="sv-nav-badge {% if current_user.servers.count() == 0 %}sv-nav-badge-0{% endif %}">
+          {{ current_user.servers.count() }}
+        </span>
+      </a>
+    </li>
+
     {# Groups sub-section: inline collapsible #}
     <li class="sv-nav-item">
       <button class="sv-nav-link"
